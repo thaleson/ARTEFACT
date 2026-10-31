@@ -96,3 +96,16 @@ def test_pdf_extractor_keeps_payment_table_together() -> None:
     assert "PIX" in chunks[0]
     assert "Cartão de Crédito" in chunks[0]
     assert "Boleto Bancário" in chunks[0]
+
+
+def test_pdf_extractor_splits_numbered_sections_without_blank_lines() -> None:
+    from app.infrastructure.policy_extractor import _paragraphs
+
+    chunks = _paragraphs(
+        "1. Sobre a loja\nTexto geral.\n"
+        "1.2 Dados da Empresa\nEndereço Rua 14 de Maio, 3200.\n"
+        "2. Horário de Funcionamento\n09:00 às 18:00."
+    )
+
+    assert len(chunks) == 3
+    assert "Endereço Rua 14 de Maio" in chunks[1]

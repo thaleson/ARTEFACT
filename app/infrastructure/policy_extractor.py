@@ -72,11 +72,15 @@ def _paragraphs(text: str) -> list[str]:
         list[str]: Cleaned paragraph values.
     """
     normalized = re.sub(r"[ \t]+", " ", text)
-    paragraphs = [
-        paragraph.strip()
-        for paragraph in re.split(r"\n\s*\n", normalized)
-        if paragraph.strip()
-    ]
+    paragraphs = []
+    for block in re.split(r"\n\s*\n", normalized):
+        paragraphs.extend(
+            section.strip()
+            for section in re.split(
+                r"(?m)(?=^\s*\d+(?:\.\d+)*\.?\s+)", block
+            )
+            if section.strip()
+        )
     return _merge_table_fragments(paragraphs)
 
 
