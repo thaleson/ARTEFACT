@@ -71,11 +71,17 @@ def order_context() -> OrderContext:
     Returns:
         OrderContext: Optional normalized order ID, email, and phone.
     """
-    order_id = st.session_state.get("order_id", 0)
+    raw_order_id = st.session_state.get("order_id_input", "")
+    order_id: int | None = None
+    if isinstance(raw_order_id, int) and raw_order_id > 0:
+        order_id = raw_order_id
+    elif isinstance(raw_order_id, str) and raw_order_id.strip().isdigit():
+        parsed_order_id = int(raw_order_id.strip())
+        order_id = parsed_order_id if parsed_order_id > 0 else None
     email = st.session_state.get("customer_email", "")
     phone = st.session_state.get("customer_phone", "")
     return OrderContext(
-        order_id=order_id if isinstance(order_id, int) and order_id > 0 else None,
+        order_id=order_id,
         customer_email=email.strip() if isinstance(email, str) and email.strip() else None,
         customer_phone=phone.strip() if isinstance(phone, str) and phone.strip() else None,
     )

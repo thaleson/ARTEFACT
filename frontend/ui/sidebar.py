@@ -22,23 +22,40 @@ def render_sidebar(client: BackendClient) -> None:
             unsafe_allow_html=True,
         )
         st.divider()
-        st.markdown("### Status do atendimento")
-        if client.health():
-            st.success("Backend conectado", icon="✅")
-        else:
-            st.error("Backend indisponível", icon="⚠️")
-        st.caption(f"API: {client.settings.backend_url}")
-        st.divider()
-        st.markdown("### Consultar pedido")
-        st.caption("Preencha os dados somente quando quiser consultar um pedido.")
-        st.number_input(
-            "Número do pedido",
-            min_value=0,
-            step=1,
-            key="order_id",
-            help="Obrigatório junto com e-mail ou telefone para ver o status.",
+        st.markdown(
+            '<div class="sidebar-section-label">ATENDIMENTO</div>',
+            unsafe_allow_html=True,
         )
-        st.text_input("E-mail cadastrado", key="customer_email")
-        st.text_input("Telefone cadastrado", key="customer_phone")
+        if client.health():
+            st.success("Atendimento online", icon="●")
+        else:
+            st.error("Atendimento indisponível", icon="⚠️")
+        st.caption("Pronto para ajudar com catálogo, pedidos e políticas.")
         st.divider()
-        st.caption("SQLite • Policy retrieval • Function calling opcional")
+        st.markdown(
+            '<div class="order-panel"><div class="order-kicker">PEDIDOS</div>'
+            '<h3>Acompanhe sua entrega</h3>'
+            '<p>Informe o número do pedido e <strong>uma</strong> forma de confirmação.</p>'
+            '<div class="order-help">Depois, pergunte no chat:<br>'
+            '<em>“Qual o status do meu pedido?”</em></div></div>',
+            unsafe_allow_html=True,
+        )
+        st.text_input(
+            "Número do pedido",
+            placeholder="Ex.: 8",
+            key="order_id_input",
+        )
+        st.text_input(
+            "E-mail cadastrado",
+            placeholder="cliente@email.com",
+            key="customer_email",
+        )
+        st.markdown('<div class="order-or">ou</div>', unsafe_allow_html=True)
+        st.text_input(
+            "Telefone cadastrado",
+            placeholder="(00) 00000-0000",
+            key="customer_phone",
+        )
+        st.caption("Os dados são usados apenas para validar o pedido.")
+        st.divider()
+        st.caption("Proteção de dados ativa • Atendimento seguro")

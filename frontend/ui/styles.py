@@ -20,15 +20,26 @@ def render_styles() -> None:
         .main input::placeholder, .main textarea::placeholder { color: var(--muted) !important; opacity: 1 !important; -webkit-text-fill-color: var(--muted) !important; }
         [data-testid="stSidebar"] { background: #1d1b2a; border-right: 0; }
         [data-testid="stSidebar"] * { color: #f8f6ff !important; }
-        [data-testid="stSidebar"] [data-testid="stTextInput"] input,
-        [data-testid="stSidebar"] [data-testid="stNumberInput"] input { background: #2a2739 !important; border: 1px solid #48435b; color: #f8f6ff !important; caret-color: #f8f6ff !important; -webkit-text-fill-color: #f8f6ff !important; }
+        [data-testid="stSidebar"] [data-testid="stTextInput"] input { background: #2a2739 !important; border: 1px solid #48435b; color: #f8f6ff !important; caret-color: #f8f6ff !important; -webkit-text-fill-color: #f8f6ff !important; }
         [data-testid="stSidebar"] input::placeholder { color: #aca6bf !important; opacity: 1 !important; -webkit-text-fill-color: #aca6bf !important; }
+        .sidebar-section-label { color: var(--gold) !important; font-size: .65rem; font-weight: 700; letter-spacing: .18em; margin-bottom: .7rem; }
+        [data-testid="stSidebar"] [data-testid="stAlert"] { background: #29463b !important; border: 1px solid #3b6955; border-radius: 11px; }
+        [data-testid="stSidebar"] [data-testid="stAlert"] p { color: #f4fff8 !important; font-size: .82rem; }
+        [data-testid="stSidebar"] [data-testid="stCaptionContainer"] p { color: #aca6bf !important; font-size: .7rem; line-height: 1.5; }
         .brand-mark { display: flex; align-items: center; gap: 11px; color: #fff; letter-spacing: .13em; }
         .brand-mark span { color: var(--gold); font-size: 2.2rem; line-height: 1; }
         .brand-mark b, .brand-mark small { display: block; }
         .brand-mark b { font-size: .94rem; }
         .brand-mark small { color: var(--gold) !important; font-size: .58rem; letter-spacing: .25em; margin-top: 2px; }
         .sidebar-copy { color: #aca6bf !important; font-family: 'Playfair Display', serif; font-style: italic; margin-top: -8px; }
+        .order-panel { background: #252235; border: 1px solid #3e3855; border-radius: 14px; margin: .1rem 0 1rem; padding: 15px 14px 14px; }
+        .order-kicker { color: var(--gold) !important; font-size: .61rem; font-weight: 700; letter-spacing: .18em; }
+        .order-panel h3 { color: #ffffff !important; font-size: 1.02rem; margin: 6px 0 6px; }
+        .order-panel p { color: #c4bed4 !important; font-size: .75rem; line-height: 1.45; margin: 0; }
+        .order-panel strong { color: #ffffff !important; }
+        .order-help { border-left: 2px solid var(--gold); color: #e7e1f2 !important; font-size: .73rem; line-height: 1.45; margin-top: 11px; padding-left: 9px; }
+        .order-help em { color: #ffffff !important; }
+        .order-or { color: #817a96 !important; font-size: .67rem; letter-spacing: .1em; margin: -.05rem 0 .25rem; text-align: center; text-transform: uppercase; }
         .hero { padding: 1.9rem 0 1.25rem; }
         .eyebrow, .section-label { color: var(--violet); font-size: .72rem; font-weight: 700; letter-spacing: .19em; text-transform: uppercase; }
         .hero h1 { color: var(--ink); font-family: 'DM Sans', sans-serif; font-size: clamp(2rem, 4.5vw, 3.7rem); letter-spacing: -.06em; line-height: .98; margin: .5rem 0 .8rem; }
