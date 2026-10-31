@@ -3,7 +3,7 @@
 ## 1. Product
 
 **Name:** Empório da Música AI Support Agent  
-**Status:** MVP implementation complete; dependency-backed verification pending  
+**Status:** MVP implementation complete; dependency-backed verification pending
 **Primary language:** Brazilian Portuguese  
 **Technical language:** English identifiers and technical documentation
 
