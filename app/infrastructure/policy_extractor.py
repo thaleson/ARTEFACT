@@ -72,8 +72,76 @@ def _paragraphs(text: str) -> list[str]:
         list[str]: Cleaned paragraph values.
     """
     normalized = re.sub(r"[ \t]+", " ", text)
-    return [
+    paragraphs = [
         paragraph.strip()
         for paragraph in re.split(r"\n\s*\n", normalized)
         if paragraph.strip()
     ]
+    return _merge_table_fragments(paragraphs)
+
+
+def _merge_table_fragments(paragraphs: list[str]) -> list[str]:
+    """Keep schedule and delivery table rows in searchable policy chunks.
+
+    Args:
+        paragraphs (list[str]): Paragraphs extracted from one PDF page.
+
+    Returns:
+        list[str]: Paragraphs with adjacent table rows merged into their heading.
+    """
+    merged: list[str] = []
+    index = 0
+    while index < len(paragraphs):
+        paragraph = paragraphs[index]
+        normalized = paragraph.casefold()
+        if "horário de funcionamento" in normalized:
+            fragment_matcher = _is_schedule_fragment
+        elif "modalidade" in normalized and "prazo estimado" in normalized:
+            fragment_matcher = _is_delivery_fragment
+        else:
+            merged.append(paragraph)
+            index += 1
+            continue
+        table_parts = [paragraph]
+        next_index = index + 1
+        while next_index < len(paragraphs) and fragment_matcher(
+            paragraphs[next_index]
+        ):
+            table_parts.append(paragraphs[next_index])
+            next_index += 1
+        merged.append(" ".join(table_parts))
+        index = next_index
+    return merged
+
+
+def _is_schedule_fragment(paragraph: str) -> bool:
+    """Identify a table header or row belonging to store opening hours.
+
+    Args:
+        paragraph (str): Extracted paragraph candidate.
+
+    Returns:
+        bool: Whether the paragraph is part of the opening-hours table.
+    """
+    normalized = paragraph.casefold()
+    return (
+        normalized in {"dia horário", "dia horario"}
+        or bool(re.search(r"\b\d{2}:\d{2}\b", paragraph))
+        or "fechado" in normalized
+    )
+
+
+def _is_delivery_fragment(paragraph: str) -> bool:
+    """Identify a row belonging to the delivery-method table.
+
+    Args:
+        paragraph (str): Extracted paragraph candidate.
+
+    Returns:
+        bool: Whether the paragraph is part of the delivery table.
+    """
+    normalized = paragraph.casefold()
+    return (
+        normalized.startswith(("pac ", "sedex ", "jadlog "))
+        or "dias úteis" in normalized
+    )

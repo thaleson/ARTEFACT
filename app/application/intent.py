@@ -39,21 +39,30 @@ class IntentRouter:
         normalized = normalize_text(message)
         if _contains_any(normalized, ("corda", "palheta", "cabo", "case", "pedal", "amplificador")):
             return DetectedIntent(kind="accessory")
-        if _contains_any(normalized, ("pedido", "rastreamento", "rastreio")):
+        order_terms = ("pedido", "rastreamento", "rastreio")
+        if _contains_any(normalized, order_terms) and _contains_any(
+            normalized, ("status", "rastreamento", "rastreio", "acompanhar")
+        ):
             return DetectedIntent(
                 kind="order_status",
                 order_id=provided_order_id or _extract_order_id(message),
             )
         policy_terms = (
-            "endereco", "horario", "pagamento", "troca", "devolucao", "devolver",
-            "arrependimento", "arrependi", "frete", "garantia", "privacidade", "lgpd",
-            "whatsapp", "telefone", "email", "entrega", "prazo", "envio", "correios",
-            "pac", "sedex", "pix", "cartao", "boleto",
+            "endereco", "onde fica", "localizacao", "horario", "funcionamento",
+            "pagamento", "troca", "devolucao", "devolver", "arrependimento",
+            "arrependi", "frete", "garantia", "privacidade", "lgpd", "whatsapp",
+            "telefone", "email", "entrega", "prazo", "envio", "correios", "pac",
+            "sedex", "pix", "cartao", "boleto",
         )
         if _contains_any(normalized, policy_terms):
             return DetectedIntent(
                 kind="policy",
                 policy_query=_policy_query(normalized, message),
+            )
+        if _contains_any(normalized, order_terms):
+            return DetectedIntent(
+                kind="order_status",
+                order_id=provided_order_id or _extract_order_id(message),
             )
         detail_terms = ("preco", "custa", "valor", "detalhes", "especificacao")
         if _contains_any(normalized, detail_terms) and _extract_max_price(message) is None:
@@ -185,14 +194,19 @@ def _policy_query(normalized_message: str, original_message: str) -> str:
     Returns:
         str: Query sent to the policy repository.
     """
+    address_terms = ("endereco", "onde fica", "localizacao")
+    if _contains_any(normalized_message, address_terms) and _contains_any(
+        normalized_message, ("horario", "funcionamento")
+    ):
+        return "endereco empresa horario funcionamento"
     topic_queries = (
+        (address_terms, "endereco empresa"),
         (
             ("devolucao", "devolver", "arrependimento", "arrependi"),
             "devolucao arrependimento compra online",
         ),
         (("troca", "defeito"), "troca defeito produto"),
-        (("horario",), "horario funcionamento"),
-        (("endereco",), "endereco empresa"),
+        (("horario", "funcionamento"), "horario funcionamento"),
         (("entrega", "prazo", "frete", "envio"), "entrega prazo frete PAC SEDEX"),
         (("pagamento", "pix", "cartao", "boleto"), "pagamento PIX cartao boleto"),
         (("garantia",), "garantia legal fabricante"),

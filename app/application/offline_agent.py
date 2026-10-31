@@ -253,7 +253,16 @@ class OfflineSupportAgent:
         Returns:
             AgentResponse: Grounded policy excerpts and page references.
         """
-        chunks = self.policies.search(intent.policy_query or "", limit=3)
+        if intent.policy_query == "endereco empresa horario funcionamento":
+            chunks = self.policies.search("endereco empresa", limit=2)
+            known_chunk_ids = {chunk.chunk_id for chunk in chunks}
+            chunks.extend(
+                chunk
+                for chunk in self.policies.search("horario funcionamento", limit=3)
+                if chunk.chunk_id not in known_chunk_ids
+            )
+        else:
+            chunks = self.policies.search(intent.policy_query or "", limit=3)
         if not chunks:
             return AgentResponse(
                 reply=(

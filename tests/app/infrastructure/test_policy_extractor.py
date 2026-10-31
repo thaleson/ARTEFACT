@@ -42,3 +42,38 @@ def test_pdf_extractor_reports_missing_dependency(monkeypatch: pytest.MonkeyPatc
 
     with pytest.raises(RuntimeError, match="PyMuPDF"):
         PdfPolicyExtractor().extract(Path("policy.pdf"))
+
+
+def test_pdf_extractor_keeps_opening_hours_table_together() -> None:
+    from app.infrastructure.policy_extractor import _paragraphs
+
+    chunks = _paragraphs(
+        "2. Horário de Funcionamento\n\n"
+        "Dia Horário\n\n"
+        "Segunda a Sexta-feira 09:00 às 18:00\n\n"
+        "Sábado 09:00 às 13:00\n\n"
+        "Domingo e Feriados Fechado\n\n"
+        "Em datas especiais, o horário pode ser estendido."
+    )
+
+    assert len(chunks) == 2
+    assert "09:00 às 18:00" in chunks[0]
+    assert "09:00 às 13:00" in chunks[0]
+    assert "Fechado" in chunks[0]
+
+
+def test_pdf_extractor_keeps_delivery_table_together() -> None:
+    from app.infrastructure.policy_extractor import _paragraphs
+
+    chunks = _paragraphs(
+        "Modalidade Prazo Estimado Rastreamento Seguro\n\n"
+        "PAC (Correios) 5 a 12 dias úteis Sim Incluído\n\n"
+        "SEDEX (Correios) 2 a 5 dias úteis Sim Incluído\n\n"
+        "Jadlog (.package) 3 a 8 dias úteis Sim Incluído\n\n"
+        "O valor do frete é calculado pelo CEP."
+    )
+
+    assert len(chunks) == 2
+    assert "PAC (Correios)" in chunks[0]
+    assert "SEDEX (Correios)" in chunks[0]
+    assert "Jadlog" in chunks[0]
