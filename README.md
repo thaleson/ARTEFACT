@@ -42,6 +42,12 @@ Run the test suite with:
 pytest --cov=app --cov-report=term-missing
 ```
 
+After installing the project dependencies, run the real-data smoke test with:
+
+```bash
+python -m scripts.smoke_test
+```
+
 ## LLM mode
 
 The optional provider adapter uses the OpenAI-compatible chat-completions interface.
