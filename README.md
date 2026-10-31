@@ -41,6 +41,12 @@ python -m scripts.seed_database
 uvicorn app.main:app --reload
 ```
 
+To run the Streamlit client locally against the API, use:
+
+```bash
+PYTHONPATH=. streamlit run frontend/streamlit_app.py
+```
+
 Run the test suite with:
 
 ```bash

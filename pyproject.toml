@@ -28,7 +28,7 @@ frontend = [
 ]
 
 [tool.setuptools.packages.find]
-include = ["app*"]
+include = ["app*", "frontend*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
