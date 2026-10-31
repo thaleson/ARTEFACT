@@ -1,3 +1,5 @@
+"""Pure business rules for inventory, pricing, and text normalization."""
+
 import re
 import unicodedata
 from decimal import Decimal, ROUND_HALF_UP
@@ -9,10 +11,30 @@ CENT = Decimal("0.01")
 
 
 def is_available(product: Product) -> bool:
+    """Determine whether a product can be presented as currently available.
+
+    Args:
+        product (Product): Product to evaluate.
+
+    Returns:
+        bool: Whether the product is active and has positive stock.
+    """
     return product.status == "active" and product.stock_quantity > 0
 
 
 def promotional_price(product: Product, promotion: Promotion) -> Decimal:
+    """Calculate a promotion price rounded to Brazilian currency cents.
+
+    Args:
+        product (Product): Product catalog price.
+        promotion (Promotion): Active promotion to apply.
+
+    Returns:
+        Decimal: Rounded promotional price.
+
+    Raises:
+        ValueError: If the promotion is inactive.
+    """
     if not promotion.is_active:
         raise ValueError("Cannot calculate an inactive promotion")
     price = product.price_brl * (
@@ -22,6 +44,14 @@ def promotional_price(product: Product, promotion: Promotion) -> Decimal:
 
 
 def normalize_text(value: str) -> str:
+    """Normalize text to lowercase ASCII-like search terms.
+
+    Args:
+        value (str): Text to normalize.
+
+    Returns:
+        str: Lowercase text without accents or punctuation.
+    """
     normalized = unicodedata.normalize("NFKD", value)
     without_accents = "".join(
         character for character in normalized if not unicodedata.combining(character)
@@ -30,4 +60,12 @@ def normalize_text(value: str) -> str:
 
 
 def normalize_phone(value: str) -> str:
+    """Keep only digits in a phone value for identity comparison.
+
+    Args:
+        value (str): Phone value with optional punctuation.
+
+    Returns:
+        str: Digits-only phone value.
+    """
     return "".join(character for character in value if character.isdigit())

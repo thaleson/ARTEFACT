@@ -1,8 +1,16 @@
+"""SQLite connection and schema management."""
+
 import sqlite3
 from pathlib import Path
 
 
 class SqliteDatabase:
+    """Manage the SQLite connection used by repositories and seeders.
+
+    Attributes:
+        connection (sqlite3.Connection): Configured SQLite connection with row access.
+    """
+
     def __init__(self, database_path: Path) -> None:
         if str(database_path) != ":memory:":
             database_path.parent.mkdir(parents=True, exist_ok=True)
@@ -13,6 +21,7 @@ class SqliteDatabase:
         self.connection.execute("PRAGMA foreign_keys = ON")
 
     def initialize_schema(self) -> None:
+        """Create the operational and policy tables when they are absent."""
         self.connection.executescript(
             """
             CREATE TABLE IF NOT EXISTS categories (
@@ -78,6 +87,7 @@ class SqliteDatabase:
         self.connection.commit()
 
     def clear_seeded_data(self) -> None:
+        """Remove derived seed data while preserving the database schema."""
         self.connection.executescript(
             """
             DELETE FROM policy_chunks;
@@ -92,4 +102,5 @@ class SqliteDatabase:
         self.connection.commit()
 
     def close(self) -> None:
+        """Close the underlying SQLite connection."""
         self.connection.close()

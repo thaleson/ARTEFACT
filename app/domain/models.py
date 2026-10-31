@@ -1,3 +1,5 @@
+"""Immutable domain records used across application boundaries."""
+
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Mapping
@@ -5,6 +7,8 @@ from typing import Mapping
 
 @dataclass(frozen=True)
 class Product:
+    """Represent one catalog product and its current inventory state."""
+
     product_id: int
     price_brl: Decimal
     name: str
@@ -18,6 +22,8 @@ class Product:
 
 @dataclass(frozen=True)
 class Promotion:
+    """Represent a product promotion and its activation state."""
+
     promotion_id: int
     product_id: int
     discount_percent: Decimal
@@ -27,6 +33,8 @@ class Promotion:
 
 @dataclass(frozen=True)
 class Order:
+    """Represent historical order data safe for an authorized response."""
+
     order_id: int
     customer_id: int
     order_date: str
@@ -40,6 +48,8 @@ class Order:
 
 @dataclass(frozen=True)
 class PolicyChunk:
+    """Represent one page-aware excerpt extracted from the policy manual."""
+
     chunk_id: int
     page_number: int
     content: str

@@ -1,9 +1,12 @@
+"""Run acceptance checks against the real challenge data and policy PDF."""
+
 from app.application.contracts import ChatInput
 from app.config import Settings
 from app.container import build_container
 
 
 def main() -> None:
+    """Build the application and verify representative customer scenarios."""
     settings = Settings.from_environment()
     container = build_container(settings)
     try:

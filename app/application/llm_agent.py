@@ -1,3 +1,5 @@
+"""LLM-backed orchestration with controlled tool execution and offline fallback."""
+
 import json
 from typing import Mapping
 
@@ -23,6 +25,19 @@ ferramentas ou dados internos na resposta final.
 
 
 class LlmSupportAgent:
+    """Coordinate model turns, tool calls, and deterministic fallback behavior.
+
+    The model can select tools but cannot access repositories directly. Tool outputs are
+    returned to the model for response composition, while provider failures fall back to
+    the deterministic support agent.
+
+    Attributes:
+        model (ChatModel): Provider adapter used for model completions.
+        tools (ToolExecutor): Controlled executor for typed support tools.
+        fallback (OfflineSupportAgent): Deterministic agent used when the model fails.
+        max_tool_rounds (int): Maximum number of model/tool iterations per request.
+    """
+
     def __init__(
         self,
         model: ChatModel,
@@ -36,6 +51,17 @@ class LlmSupportAgent:
         self.max_tool_rounds = max_tool_rounds
 
     def respond(self, chat_input: ChatInput) -> AgentResponse:
+        """Respond to a customer message using the configured model or fallback.
+
+        Args:
+            chat_input (ChatInput): Customer message and optional verification context.
+
+        Returns:
+            AgentResponse: Final customer-facing answer and source references.
+
+        Raises:
+            ValueError: If the customer message is blank.
+        """
         chat_input = enrich_identity(chat_input)
         if not chat_input.message.strip():
             raise ValueError("Message cannot be empty")
@@ -45,6 +71,14 @@ class LlmSupportAgent:
             return self.fallback.respond(chat_input)
 
     def _respond_with_model(self, chat_input: ChatInput) -> AgentResponse:
+        """Run the model/tool loop for one customer request.
+
+        Args:
+            chat_input (ChatInput): Customer message and optional verification context.
+
+        Returns:
+            AgentResponse: Model answer or deterministic fallback answer.
+        """
         messages: list[Mapping[str, object]] = [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": chat_input.message.strip()},
@@ -84,6 +118,15 @@ def _assistant_message(
     content: str,
     tool_calls: list[ModelToolCall],
 ) -> Mapping[str, object]:
+    """Build the assistant message representation required by tool calling.
+
+    Args:
+        content (str): Optional model content accompanying tool calls.
+        tool_calls (list[ModelToolCall]): Calls selected by the model.
+
+    Returns:
+        Mapping[str, object]: Provider-compatible assistant message.
+    """
     return {
         "role": "assistant",
         "content": content,
@@ -102,6 +145,17 @@ def _assistant_message(
 
 
 def _parse_arguments(raw_arguments: str) -> Mapping[str, object]:
+    """Parse and validate JSON arguments returned by the model.
+
+    Args:
+        raw_arguments (str): JSON object encoded by the model provider.
+
+    Returns:
+        Mapping[str, object]: Parsed tool arguments.
+
+    Raises:
+        ValueError: If the provider returns invalid JSON or a non-object value.
+    """
     try:
         parsed = json.loads(raw_arguments)
     except json.JSONDecodeError as exc:
@@ -112,6 +166,14 @@ def _parse_arguments(raw_arguments: str) -> Mapping[str, object]:
 
 
 def _unique_sources(sources: list[SourceReference]) -> list[SourceReference]:
+    """Remove duplicate source references while preserving their order.
+
+    Args:
+        sources (list[SourceReference]): Source references collected from tools.
+
+    Returns:
+        list[SourceReference]: Ordered unique source references.
+    """
     unique: list[SourceReference] = []
     seen: set[tuple[str, str]] = set()
     for source in sources:

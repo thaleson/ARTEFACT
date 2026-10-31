@@ -1,3 +1,5 @@
+"""Load challenge CSV files and extracted policy chunks into SQLite."""
+
 import csv
 import json
 from pathlib import Path
@@ -9,6 +11,14 @@ from app.infrastructure.policy_extractor import PolicyExtractor
 
 
 class CsvDataSeeder:
+    """Seed the derived database from immutable challenge source files.
+
+    Attributes:
+        database (SqliteDatabase): Database receiving the derived records.
+        raw_data_dir (Path): Directory containing source CSVs and policy PDF.
+        policy_extractor (PolicyExtractor): Adapter for PDF extraction.
+    """
+
     def __init__(
         self,
         database: SqliteDatabase,
@@ -20,6 +30,7 @@ class CsvDataSeeder:
         self.policy_extractor = policy_extractor
 
     def seed(self) -> None:
+        """Rebuild all seeded tables from the raw challenge files."""
         self.database.initialize_schema()
         self.database.clear_seeded_data()
         connection = self.database.connection
@@ -116,15 +127,39 @@ class CsvDataSeeder:
 
 
 def _read_rows(path: Path) -> list[Mapping[str, str]]:
+    """Read UTF-8 CSV rows as string mappings.
+
+    Args:
+        path (Path): CSV file path.
+
+    Returns:
+        list[Mapping[str, str]]: Parsed CSV records.
+    """
     with path.open(encoding="utf-8", newline="") as handle:
         return list(csv.DictReader(handle))
 
 
 def _policy_values(chunks: Iterable[PolicyChunk]) -> list[tuple[int, int, str]]:
+    """Convert policy records into SQLite insert tuples.
+
+    Args:
+        chunks (Iterable[PolicyChunk]): Extracted policy chunks.
+
+    Returns:
+        list[tuple[int, int, str]]: Insert-ready chunk values.
+    """
     return [
         (chunk.chunk_id, chunk.page_number, chunk.content) for chunk in chunks
     ]
 
 
 def parse_specs(raw_specs: str) -> dict[str, str]:
+    """Parse a product specification JSON object.
+
+    Args:
+        raw_specs (str): JSON-encoded specification mapping.
+
+    Returns:
+        dict[str, str]: Parsed specification values.
+    """
     return json.loads(raw_specs)

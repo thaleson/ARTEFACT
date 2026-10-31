@@ -1,9 +1,13 @@
+"""Provider abstractions for optional OpenAI-compatible chat models."""
+
 from dataclasses import dataclass
 from typing import Mapping, Protocol, Sequence
 
 
 @dataclass(frozen=True)
 class ModelToolCall:
+    """Represent one function call returned by a chat model."""
+
     call_id: str
     name: str
     arguments: str
@@ -11,20 +15,40 @@ class ModelToolCall:
 
 @dataclass(frozen=True)
 class ModelTurn:
+    """Represent model content and any requested tool calls."""
+
     content: str
     tool_calls: list[ModelToolCall]
 
 
 class ChatModel(Protocol):
+    """Define the completion interface consumed by the LLM agent."""
+
     def complete(
         self,
         messages: Sequence[Mapping[str, object]],
         tools: Sequence[Mapping[str, object]],
     ) -> ModelTurn:
+        """Generate one model turn from conversation messages and tools.
+
+        Args:
+            messages (Sequence[Mapping[str, object]]): Conversation messages.
+            tools (Sequence[Mapping[str, object]]): Available function definitions.
+
+        Returns:
+            ModelTurn: Text content and requested function calls.
+        """
         ...
 
 
 class OpenAICompatibleChatModel:
+    """Adapt an OpenAI-compatible chat-completions client to the model protocol.
+
+    Attributes:
+        client (object): OpenAI-compatible SDK client.
+        model (str): Provider model identifier.
+    """
+
     def __init__(self, api_key: str, base_url: str, model: str) -> None:
         try:
             from openai import OpenAI
@@ -40,6 +64,18 @@ class OpenAICompatibleChatModel:
         messages: Sequence[Mapping[str, object]],
         tools: Sequence[Mapping[str, object]],
     ) -> ModelTurn:
+        """Request one deterministic-temperature completion from the provider.
+
+        Args:
+            messages (Sequence[Mapping[str, object]]): Conversation messages.
+            tools (Sequence[Mapping[str, object]]): Available function definitions.
+
+        Returns:
+            ModelTurn: Provider text and normalized tool calls.
+
+        Raises:
+            RuntimeError: If the configured provider request fails.
+        """
         try:
             response = self.client.chat.completions.create(
                 model=self.model,

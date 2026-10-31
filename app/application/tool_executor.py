@@ -1,3 +1,5 @@
+"""Execute typed support tools against injected repositories."""
+
 import json
 from decimal import Decimal
 from typing import Mapping
@@ -15,6 +17,15 @@ from app.domain.rules import is_available, promotional_price
 
 
 class ToolExecutor:
+    """Dispatch model-selected tools while enforcing application boundaries.
+
+    Attributes:
+        catalog (CatalogRepository): Product catalog access boundary.
+        promotions (PromotionRepository): Promotion access boundary.
+        orders (OrderRepository): Verified order access boundary.
+        policies (PolicyRepository): Policy retrieval boundary.
+    """
+
     def __init__(
         self,
         catalog: CatalogRepository,
@@ -33,6 +44,16 @@ class ToolExecutor:
         arguments: Mapping[str, object],
         chat_input: ChatInput,
     ) -> tuple[str, list[SourceReference]]:
+        """Execute a named tool and return serialized data with sources.
+
+        Args:
+            name (str): Tool name selected by the model.
+            arguments (Mapping[str, object]): Validated or model-provided arguments.
+            chat_input (ChatInput): Original message and trusted identity context.
+
+        Returns:
+            tuple[str, list[SourceReference]]: JSON tool result and source references.
+        """
         handlers = {
             "search_products": self._search_products,
             "get_product": self._get_product,
@@ -50,6 +71,15 @@ class ToolExecutor:
         arguments: Mapping[str, object],
         chat_input: ChatInput,
     ) -> tuple[str, list[SourceReference]]:
+        """Search available products and include active promotion data.
+
+        Args:
+            arguments (Mapping[str, object]): Optional catalog filters.
+            chat_input (ChatInput): Original customer context.
+
+        Returns:
+            tuple[str, list[SourceReference]]: Serialized products and catalog sources.
+        """
         del chat_input
         query = _optional_string(arguments.get("query"))
         category_id = _optional_int(arguments.get("category_id"))
@@ -83,6 +113,15 @@ class ToolExecutor:
         arguments: Mapping[str, object],
         chat_input: ChatInput,
     ) -> tuple[str, list[SourceReference]]:
+        """Return one product with availability and promotion information.
+
+        Args:
+            arguments (Mapping[str, object]): Required product ID.
+            chat_input (ChatInput): Original customer context.
+
+        Returns:
+            tuple[str, list[SourceReference]]: Serialized product and catalog source.
+        """
         del chat_input
         product_id = _required_int(arguments.get("product_id"))
         product = self.catalog.get_product(product_id)
@@ -108,6 +147,15 @@ class ToolExecutor:
         arguments: Mapping[str, object],
         chat_input: ChatInput,
     ) -> tuple[str, list[SourceReference]]:
+        """Return a valid active promotion and calculated promotional price.
+
+        Args:
+            arguments (Mapping[str, object]): Required product ID.
+            chat_input (ChatInput): Original customer context.
+
+        Returns:
+            tuple[str, list[SourceReference]]: Promotion payload and source reference.
+        """
         del chat_input
         product_id = _required_int(arguments.get("product_id"))
         product = self.catalog.get_product(product_id)
@@ -128,6 +176,15 @@ class ToolExecutor:
         arguments: Mapping[str, object],
         chat_input: ChatInput,
     ) -> tuple[str, list[SourceReference]]:
+        """Return order data only when trusted request identity matches the order.
+
+        Args:
+            arguments (Mapping[str, object]): Required order ID.
+            chat_input (ChatInput): Customer identity supplied outside model arguments.
+
+        Returns:
+            tuple[str, list[SourceReference]]: Authorized order payload or safe refusal.
+        """
         order_id = _required_int(arguments.get("order_id"))
         if not chat_input.customer_email and not chat_input.customer_phone:
             return json.dumps({"authorized": False, "verification_required": True}), []
@@ -157,6 +214,15 @@ class ToolExecutor:
         arguments: Mapping[str, object],
         chat_input: ChatInput,
     ) -> tuple[str, list[SourceReference]]:
+        """Retrieve policy chunks relevant to a model-generated query.
+
+        Args:
+            arguments (Mapping[str, object]): Required policy query.
+            chat_input (ChatInput): Original customer context.
+
+        Returns:
+            tuple[str, list[SourceReference]]: Serialized policy chunks and pages.
+        """
         del chat_input
         query = _required_string(arguments.get("query"))
         chunks = self.policies.search(query, limit=4)
@@ -178,6 +244,15 @@ def _promotion_data(
     product: Product,
     promotion: Promotion | None,
 ) -> dict[str, object] | None:
+    """Serialize an active promotion only for an available product.
+
+    Args:
+        product (Product): Product associated with the promotion.
+        promotion (Promotion | None): Promotion candidate.
+
+    Returns:
+        dict[str, object] | None: Promotion data or no promotion.
+    """
     if promotion is None or not is_available(product):
         return None
     return {
@@ -188,10 +263,29 @@ def _promotion_data(
 
 
 def _optional_string(value: object) -> str | None:
+    """Normalize an optional non-empty string tool argument.
+
+    Args:
+        value (object): Raw tool argument.
+
+    Returns:
+        str | None: Stripped value or no value.
+    """
     return value.strip() if isinstance(value, str) and value.strip() else None
 
 
 def _required_string(value: object) -> str:
+    """Validate a required non-empty string tool argument.
+
+    Args:
+        value (object): Raw tool argument.
+
+    Returns:
+        str: Stripped non-empty string.
+
+    Raises:
+        ValueError: If the value is missing or not a non-empty string.
+    """
     result = _optional_string(value)
     if result is None:
         raise ValueError("A non-empty string argument is required")
@@ -199,12 +293,34 @@ def _required_string(value: object) -> str:
 
 
 def _optional_int(value: object) -> int | None:
+    """Normalize an optional integer tool argument.
+
+    Args:
+        value (object): Raw tool argument.
+
+    Returns:
+        int | None: Parsed integer or no value.
+
+    Raises:
+        ValueError: If a supplied value is not an integer.
+    """
     if value is None:
         return None
     return _required_int(value)
 
 
 def _required_int(value: object) -> int:
+    """Validate and parse a required integer tool argument.
+
+    Args:
+        value (object): Raw tool argument.
+
+    Returns:
+        int: Parsed integer.
+
+    Raises:
+        ValueError: If the value is boolean or cannot be parsed as an integer.
+    """
     if isinstance(value, bool):
         raise ValueError("An integer argument is required")
     try:
@@ -214,6 +330,17 @@ def _required_int(value: object) -> int:
 
 
 def _optional_decimal(value: object) -> Decimal | None:
+    """Normalize an optional decimal tool argument.
+
+    Args:
+        value (object): Raw tool argument.
+
+    Returns:
+        Decimal | None: Parsed decimal or no value.
+
+    Raises:
+        ValueError: If a supplied value cannot be parsed as a number.
+    """
     if value is None:
         return None
     try:

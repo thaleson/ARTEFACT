@@ -1,3 +1,5 @@
+"""Application entry point used by Uvicorn."""
+
 from app.config import Settings
 from app.container import build_container
 from app.presentation.api import create_app

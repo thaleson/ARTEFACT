@@ -1,3 +1,5 @@
+"""HTTP controller responsible for service orchestration and error mapping."""
+
 from fastapi import HTTPException
 
 from app.presentation.dtos import ChatRequest, ChatResponse, SourceResponse
@@ -5,10 +7,27 @@ from app.presentation.service import ChatService
 
 
 class ChatController:
+    """Translate validated chat requests into HTTP response DTOs.
+
+    Attributes:
+        service (ChatService): Service responsible for agent invocation.
+    """
+
     def __init__(self, service: ChatService) -> None:
         self.service = service
 
     def respond(self, request: ChatRequest) -> ChatResponse:
+        """Handle one chat request and map application errors to HTTP errors.
+
+        Args:
+            request (ChatRequest): Validated request body.
+
+        Returns:
+            ChatResponse: Serialized agent response with source references.
+
+        Raises:
+            HTTPException: For validation, infrastructure, or unexpected failures.
+        """
         try:
             response = self.service.respond(request)
         except ValueError as exc:

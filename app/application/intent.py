@@ -1,3 +1,5 @@
+"""Detect supported customer intents from Portuguese messages."""
+
 import re
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
@@ -7,6 +9,8 @@ from app.domain.rules import normalize_text
 
 @dataclass(frozen=True)
 class DetectedIntent:
+    """Represent the normalized intent and extracted query parameters."""
+
     kind: str
     product_query: str | None = None
     category_id: int | None = None
@@ -16,7 +20,22 @@ class DetectedIntent:
 
 
 class IntentRouter:
+    """Classify messages into deterministic catalog, order, policy, or scope flows.
+
+    The router uses lightweight Portuguese keyword and pattern matching so the core
+    scenarios remain available without an external model.
+    """
+
     def route(self, message: str, provided_order_id: int | None = None) -> DetectedIntent:
+        """Detect the primary intent for a customer message.
+
+        Args:
+            message (str): Customer message in Portuguese.
+            provided_order_id (int | None): Optional order ID supplied by the API.
+
+        Returns:
+            DetectedIntent: Normalized intent and extracted parameters.
+        """
         normalized = normalize_text(message)
         if _contains_any(normalized, ("corda", "palheta", "cabo", "case", "pedal", "amplificador")):
             return DetectedIntent(kind="accessory")
@@ -62,10 +81,27 @@ class IntentRouter:
 
 
 def _contains_any(value: str, terms: tuple[str, ...]) -> bool:
+    """Check whether any configured term occurs in a normalized value.
+
+    Args:
+        value (str): Normalized message text.
+        terms (tuple[str, ...]): Terms to search for.
+
+    Returns:
+        bool: Whether at least one term is present.
+    """
     return any(term in value for term in terms)
 
 
 def _category_id(message: str) -> int | None:
+    """Map instrument keywords to the supplied catalog category IDs.
+
+    Args:
+        message (str): Normalized customer message.
+
+    Returns:
+        int | None: Matching category ID, if one can be identified.
+    """
     category_terms = {
         1: ("guitarra",),
         2: ("baixo", "contrabaixo"),
@@ -84,6 +120,14 @@ def _category_id(message: str) -> int | None:
 
 
 def _extract_order_id(message: str) -> int | None:
+    """Extract an order number written next to the word pedido or order.
+
+    Args:
+        message (str): Original customer message.
+
+    Returns:
+        int | None: Parsed order ID, if present.
+    """
     match = re.search(
         r"(?:pedido|order)\s*(?:n[úu]mero|n[ºo°]?|#)?\s*(\d+)",
         message,
@@ -93,6 +137,14 @@ def _extract_order_id(message: str) -> int | None:
 
 
 def _extract_max_price(message: str) -> Decimal | None:
+    """Extract a Portuguese maximum-price constraint from a message.
+
+    Args:
+        message (str): Original customer message containing a price limit.
+
+    Returns:
+        Decimal | None: Parsed maximum price, if a supported pattern is found.
+    """
     pattern = r"(?:até|ate|menos de|abaixo de|no máximo|maximo)\s*(?:r\$\s*)?([\d.,]+)"
     match = re.search(pattern, message, re.IGNORECASE)
     if not match:
@@ -105,6 +157,14 @@ def _extract_max_price(message: str) -> Decimal | None:
 
 
 def _product_query(normalized_message: str) -> str:
+    """Remove conversational stop words and retain product search terms.
+
+    Args:
+        normalized_message (str): Accent-free normalized message.
+
+    Returns:
+        str: Terms suitable for catalog lookup.
+    """
     stop_words = {
         "quanto", "custa", "qual", "preco", "valor", "do", "da", "de", "o", "a",
         "produto", "tem", "detalhes", "sobre", "me", "fale", "especificacao",
@@ -116,6 +176,15 @@ def _product_query(normalized_message: str) -> str:
 
 
 def _policy_query(normalized_message: str, original_message: str) -> str:
+    """Map common policy wording to stable retrieval terms.
+
+    Args:
+        normalized_message (str): Accent-free normalized message.
+        original_message (str): Original message used as a fallback query.
+
+    Returns:
+        str: Query sent to the policy repository.
+    """
     topic_queries = (
         (
             ("devolucao", "devolver", "arrependimento", "arrependi"),

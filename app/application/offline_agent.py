@@ -1,3 +1,5 @@
+"""Deterministic support agent for local execution and automated verification."""
+
 from app.application.contracts import AgentResponse, ChatInput, SourceReference
 from app.application.formatting import format_order, format_product_line
 from app.application.input_normalizer import enrich_identity
@@ -12,6 +14,19 @@ from app.domain.rules import is_available
 
 
 class OfflineSupportAgent:
+    """Answer supported customer scenarios without an external model.
+
+    The agent delegates catalog, promotion, order, and policy facts to injected
+    repositories and keeps response composition separate from data access.
+
+    Attributes:
+        catalog (CatalogRepository): Product catalog access boundary.
+        promotions (PromotionRepository): Active promotion access boundary.
+        orders (OrderRepository): Verified order access boundary.
+        policies (PolicyRepository): Policy retrieval boundary.
+        router (IntentRouter): Deterministic message classifier.
+    """
+
     def __init__(
         self,
         catalog: CatalogRepository,
@@ -27,6 +42,17 @@ class OfflineSupportAgent:
         self.router = router or IntentRouter()
 
     def respond(self, chat_input: ChatInput) -> AgentResponse:
+        """Route one customer message to the appropriate support handler.
+
+        Args:
+            chat_input (ChatInput): Customer message and optional verification context.
+
+        Returns:
+            AgentResponse: Customer-facing answer with source references.
+
+        Raises:
+            ValueError: If the message is blank.
+        """
         chat_input = enrich_identity(chat_input)
         message = chat_input.message.strip()
         if not message:
@@ -44,6 +70,11 @@ class OfflineSupportAgent:
         return handlers[intent.kind]()
 
     def _accessory_response(self) -> AgentResponse:
+        """Explain that the store does not sell accessories.
+
+        Returns:
+            AgentResponse: Scope clarification in the store's tone.
+        """
         return AgentResponse(
             reply=(
                 "A gente trabalha exclusivamente com instrumentos musicais. "
@@ -58,6 +89,15 @@ class OfflineSupportAgent:
         intent: DetectedIntent,
         chat_input: ChatInput,
     ) -> AgentResponse:
+        """Handle order lookup with identity verification and safe refusal.
+
+        Args:
+            intent (DetectedIntent): Detected order intent and optional order ID.
+            chat_input (ChatInput): Message and explicit customer identity values.
+
+        Returns:
+            AgentResponse: Verification request, safe refusal, or authorized order data.
+        """
         if intent.order_id is None:
             return AgentResponse(
                 reply=(
@@ -96,6 +136,14 @@ class OfflineSupportAgent:
         )
 
     def _product_search_response(self, intent: DetectedIntent) -> AgentResponse:
+        """Search and format currently available catalog products.
+
+        Args:
+            intent (DetectedIntent): Catalog filters extracted from the message.
+
+        Returns:
+            AgentResponse: Matching products and catalog source references.
+        """
         products = self.catalog.search_products(
             category_id=intent.category_id,
             max_price=intent.max_price,
@@ -122,6 +170,14 @@ class OfflineSupportAgent:
         )
 
     def _product_detail_response(self, intent: DetectedIntent) -> AgentResponse:
+        """Resolve a product query and present catalog details or alternatives.
+
+        Args:
+            intent (DetectedIntent): Product terms extracted from the message.
+
+        Returns:
+            AgentResponse: Product detail, disambiguation, or safe not-found response.
+        """
         if not intent.product_query:
             return AgentResponse(
                 reply="Qual é o nome ou modelo do instrumento que você quer consultar?",
@@ -162,6 +218,11 @@ class OfflineSupportAgent:
         )
 
     def _promotion_search_response(self) -> AgentResponse:
+        """List active promotions attached to currently available products.
+
+        Returns:
+            AgentResponse: Active promotion summaries and source references.
+        """
         products = self.catalog.search_products(available_only=True)
         promoted = []
         sources = []
@@ -184,6 +245,14 @@ class OfflineSupportAgent:
         )
 
     def _policy_response(self, intent: DetectedIntent) -> AgentResponse:
+        """Retrieve and present the most relevant store-policy passages.
+
+        Args:
+            intent (DetectedIntent): Policy retrieval query.
+
+        Returns:
+            AgentResponse: Grounded policy excerpts and page references.
+        """
         chunks = self.policies.search(intent.policy_query or "", limit=3)
         if not chunks:
             return AgentResponse(
@@ -206,6 +275,11 @@ class OfflineSupportAgent:
         )
 
     def _unknown_response(self) -> AgentResponse:
+        """Explain the supported scope when intent cannot be resolved.
+
+        Returns:
+            AgentResponse: Safe clarification prompt.
+        """
         return AgentResponse(
             reply=(
                 "Posso ajudar com instrumentos do catálogo, preços, disponibilidade, "
@@ -217,6 +291,15 @@ class OfflineSupportAgent:
 
 
 def _compact(content: str, maximum_length: int = 500) -> str:
+    """Collapse whitespace and truncate a policy excerpt for chat output.
+
+    Args:
+        content (str): Retrieved policy content.
+        maximum_length (int): Maximum output length including the ellipsis.
+
+    Returns:
+        str: Compact policy excerpt.
+    """
     compacted = " ".join(content.split())
     if len(compacted) <= maximum_length:
         return compacted

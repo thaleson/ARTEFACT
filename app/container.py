@@ -1,3 +1,5 @@
+"""Dependency composition for the application runtime."""
+
 from dataclasses import dataclass
 
 from app.application.llm_agent import LlmSupportAgent
@@ -18,14 +20,30 @@ from app.infrastructure.seeder import CsvDataSeeder
 
 @dataclass
 class ApplicationContainer:
+    """Own the database connection and configured support agent.
+
+    Attributes:
+        database (SqliteDatabase): Database resource owned by the container.
+        agent (OfflineSupportAgent | LlmSupportAgent): Configured support agent.
+    """
+
     database: SqliteDatabase
     agent: OfflineSupportAgent | LlmSupportAgent
 
     def close(self) -> None:
+        """Release the database resource owned by the container."""
         self.database.close()
 
 
 def build_container(settings: Settings) -> ApplicationContainer:
+    """Build repositories, agents, and database state from application settings.
+
+    Args:
+        settings (Settings): Runtime paths and model configuration.
+
+    Returns:
+        ApplicationContainer: Fully wired application dependencies.
+    """
     database = SqliteDatabase(settings.database_path)
     CsvDataSeeder(
         database=database,

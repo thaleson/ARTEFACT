@@ -1,3 +1,5 @@
+"""JSON schemas exposed to the optional function-calling model."""
+
 from typing import Mapping
 
 
