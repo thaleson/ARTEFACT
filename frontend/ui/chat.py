@@ -1,5 +1,7 @@
 """Conversation rendering and message submission components."""
 
+import html
+
 import httpx
 import streamlit as st
 
@@ -15,14 +17,14 @@ from frontend.session import (
 
 def render_messages() -> None:
     """Render the current conversation and non-sensitive source references."""
-    for message in messages():
-        role = str(message["role"])
-        avatar = "🎵" if role == "assistant" else "🙂"
-        with st.chat_message(role, avatar=avatar):
-            st.markdown(str(message["content"]))
-            sources = message.get("sources", ())
-            if isinstance(sources, tuple) and sources:
-                _render_sources(sources)
+    st.markdown(
+        '<div class="conversation-heading"><div><span>CONVERSA</span>'
+        '<b>Atendimento da loja</b></div><small>Online agora</small></div>',
+        unsafe_allow_html=True,
+    )
+    with st.container(height=540, border=False):
+        for message in messages():
+            _render_message(message)
 
 
 def process_messages(client: BackendClient) -> None:
@@ -57,6 +59,30 @@ def _render_sources(sources: tuple[SourceReference, ...]) -> None:
     with st.expander("Fontes consultadas", expanded=False):
         for source in sources:
             st.caption(f"{source.source_type} · {source.reference}")
+
+
+def _render_message(message: dict[str, object]) -> None:
+    """Render one message as a controlled chat bubble.
+
+    Args:
+        message (dict[str, object]): Session message containing role, content, and sources.
+    """
+    role = str(message["role"])
+    is_user = role == "user"
+    bubble_class = "user" if is_user else "assistant"
+    author = "Você" if is_user else "Empório da Música"
+    icon = "●" if is_user else "♫"
+    content = html.escape(str(message["content"]))
+    st.markdown(
+        f'<div class="chat-item {bubble_class}"><div class="chat-avatar">{icon}</div>'
+        f'<div class="chat-bubble"><div class="chat-meta"><b>{author}</b>'
+        f'<span>{"AGORA" if is_user else "ASSISTENTE"}</span></div>'
+        f'<div class="chat-copy">{content}</div></div></div>',
+        unsafe_allow_html=True,
+    )
+    sources = message.get("sources", ())
+    if isinstance(sources, tuple) and sources:
+        _render_sources(sources)
 
 
 def _connection_error_result() -> ChatResult:

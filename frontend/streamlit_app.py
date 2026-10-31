@@ -6,6 +6,7 @@ from frontend.api_client import BackendClient
 from frontend.session import initialize_session
 from frontend.ui.chat import process_messages, render_messages
 from frontend.ui.header import render_header
+from frontend.ui.overview import render_overview
 from frontend.ui.quick_actions import render_quick_actions
 from frontend.ui.sidebar import render_sidebar
 from frontend.ui.styles import render_styles
@@ -24,6 +25,7 @@ def main() -> None:
     client = BackendClient()
     render_sidebar(client)
     render_header()
+    render_overview()
     render_quick_actions()
     process_messages(client)
     render_messages()
