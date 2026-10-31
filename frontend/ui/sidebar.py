@@ -27,7 +27,7 @@ def render_sidebar(client: BackendClient) -> None:
             unsafe_allow_html=True,
         )
         if client.health():
-            st.success("Atendimento online", icon="●")
+            st.success("Atendimento online", icon="✅")
         else:
             st.error("Atendimento indisponível", icon="⚠️")
         st.caption("Pronto para ajudar com catálogo, pedidos e políticas.")
