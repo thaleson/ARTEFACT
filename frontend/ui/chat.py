@@ -38,15 +38,13 @@ def process_messages(client: BackendClient) -> None:
         return
     normalized_message = message.strip()
     append_message("user", normalized_message)
-    with st.chat_message("assistant", avatar="🎵"):
-        with st.spinner("Consultando o catálogo e as políticas..."):
-            try:
-                result = client.chat(normalized_message, order_context())
-            except httpx.HTTPError:
-                result = _connection_error_result()
-            except ValueError:
-                result = _invalid_response_result()
-        st.markdown(result.reply)
+    with st.spinner("Consultando o catálogo e as políticas..."):
+        try:
+            result = client.chat(normalized_message, order_context())
+        except httpx.HTTPError:
+            result = _connection_error_result()
+        except ValueError:
+            result = _invalid_response_result()
     append_message("assistant", result.reply, result.sources)
 
 

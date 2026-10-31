@@ -25,8 +25,8 @@ def main() -> None:
     render_sidebar(client)
     render_header()
     render_quick_actions()
-    render_messages()
     process_messages(client)
+    render_messages()
 
 
 if __name__ == "__main__":
