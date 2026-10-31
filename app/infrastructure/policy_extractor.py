@@ -98,6 +98,8 @@ def _merge_table_fragments(paragraphs: list[str]) -> list[str]:
             fragment_matcher = _is_schedule_fragment
         elif "modalidade" in normalized and "prazo estimado" in normalized:
             fragment_matcher = _is_delivery_fragment
+        elif "formas de pagamento" in normalized:
+            fragment_matcher = _is_payment_fragment
         else:
             merged.append(paragraph)
             index += 1
@@ -144,4 +146,23 @@ def _is_delivery_fragment(paragraph: str) -> bool:
     return (
         normalized.startswith(("pac ", "sedex ", "jadlog "))
         or "dias úteis" in normalized
+    )
+
+
+def _is_payment_fragment(paragraph: str) -> bool:
+    """Identify a row belonging to the payment-method table.
+
+    Args:
+        paragraph (str): Extracted paragraph candidate.
+
+    Returns:
+        bool: Whether the paragraph is part of the payment table.
+    """
+    normalized = paragraph.casefold()
+    return normalized in {
+        "forma condições observações",
+        "forma condicoes observacoes",
+    } or normalized.startswith(
+        ("pix ", "cartão de débito ", "cartao de debito ", "cartão de crédito ",
+         "cartao de credito ", "boleto bancário ", "boleto bancario ")
     )

@@ -37,6 +37,7 @@ def test_router_detects_policy_accessories_and_unknown_messages() -> None:
 
     combined_policy = router.route("Qual o endereço e o horário da loja?")
     assert combined_policy.policy_query == "endereco empresa horario funcionamento"
+    assert router.route("Qual o endereço da loja?").policy_query == "endereco"
 
 
 def test_router_detects_active_promotion_list() -> None:

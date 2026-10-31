@@ -77,3 +77,22 @@ def test_pdf_extractor_keeps_delivery_table_together() -> None:
     assert "PAC (Correios)" in chunks[0]
     assert "SEDEX (Correios)" in chunks[0]
     assert "Jadlog" in chunks[0]
+
+
+def test_pdf_extractor_keeps_payment_table_together() -> None:
+    from app.infrastructure.policy_extractor import _paragraphs
+
+    chunks = _paragraphs(
+        "3. Formas de Pagamento\n\n"
+        "Forma Condições Observações\n\n"
+        "PIX Pagamento à vista 5% de desconto\n\n"
+        "Cartão de Débito Pagamento à vista Todas as bandeiras\n\n"
+        "Cartão de Crédito Até 12x sem juros Parcela mínima de R$ 100,00\n\n"
+        "Boleto Bancário Pagamento à vista Compensação em até 3 dias úteis\n\n"
+        "3.1 Regras de Parcelamento\n"
+    )
+
+    assert len(chunks) == 2
+    assert "PIX" in chunks[0]
+    assert "Cartão de Crédito" in chunks[0]
+    assert "Boleto Bancário" in chunks[0]

@@ -200,7 +200,7 @@ def _policy_query(normalized_message: str, original_message: str) -> str:
     ):
         return "endereco empresa horario funcionamento"
     topic_queries = (
-        (address_terms, "endereco empresa"),
+        (address_terms, "endereco"),
         (
             ("devolucao", "devolver", "arrependimento", "arrependi"),
             "devolucao arrependimento compra online",

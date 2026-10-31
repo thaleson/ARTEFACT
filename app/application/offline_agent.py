@@ -254,15 +254,24 @@ class OfflineSupportAgent:
             AgentResponse: Grounded policy excerpts and page references.
         """
         if intent.policy_query == "endereco empresa horario funcionamento":
-            chunks = self.policies.search("endereco empresa", limit=2)
+            chunks = self.policies.search("endereco", limit=1)
             known_chunk_ids = {chunk.chunk_id for chunk in chunks}
             chunks.extend(
                 chunk
-                for chunk in self.policies.search("horario funcionamento", limit=3)
+                for chunk in self.policies.search("horario funcionamento", limit=1)
                 if chunk.chunk_id not in known_chunk_ids
             )
         else:
-            chunks = self.policies.search(intent.policy_query or "", limit=3)
+            policy_limits = {
+                "endereco": 1,
+                "horario funcionamento": 1,
+                "devolucao arrependimento compra online": 1,
+                "pagamento PIX cartao boleto": 1,
+                "garantia legal fabricante": 1,
+                "privacidade LGPD dados": 2,
+            }
+            query = intent.policy_query or ""
+            chunks = self.policies.search(query, limit=policy_limits.get(query, 3))
         if not chunks:
             return AgentResponse(
                 reply=(
@@ -272,7 +281,8 @@ class OfflineSupportAgent:
                 mode="offline",
             )
         excerpts = [
-            f"(p. {chunk.page_number}) {_compact(chunk.content)}" for chunk in chunks
+            f"(p. {chunk.page_number}) {_compact(chunk.content, maximum_length=800)}"
+            for chunk in chunks
         ]
         return AgentResponse(
             reply="Segundo o manual da loja:\n" + "\n".join(excerpts),
