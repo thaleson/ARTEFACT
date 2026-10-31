@@ -3,7 +3,7 @@
 ## 1. Product
 
 **Name:** Empório da Música AI Support Agent  
-**Status:** Discovery complete; implementation not started  
+**Status:** MVP implementation complete; dependency-backed verification pending  
 **Primary language:** Brazilian Portuguese  
 **Technical language:** English identifiers and technical documentation
 
@@ -230,4 +230,13 @@ and verified order lookup. SQL is never assembled from user text.
 6. **Verification:** unit tests, integration tests, Docker smoke test, examples, README,
    limitations, and code review.
 
-Each stage should be committed separately once Git write access is available.
+Each implementation stage is committed separately in the local project history.
+
+## 12. Current implementation status
+
+The workspace currently contains the raw challenge data, SQLite ingestion, policy PDF
+extraction, lexical policy retrieval, deterministic support agent, optional
+OpenAI-compatible function-calling adapter, FastAPI interface, Docker configuration,
+unit tests, and four conversation examples. The remaining verification step is to run
+the dependency-backed pytest suite and real-data smoke test in an environment with
+network/package access or a working Docker daemon.
