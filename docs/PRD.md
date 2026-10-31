@@ -116,6 +116,13 @@ The agent must ask a focused clarification question when a product, order, or po
 request cannot be resolved safely. It must say when the supplied data is insufficient
 instead of inventing an answer.
 
+### FR-09 — Demonstration interface
+
+The project should provide an optional Streamlit interface that consumes the same FastAPI
+chat contract. It must expose representative quick actions, conversation history, and
+order-verification fields without duplicating business logic or exposing provider
+credentials.
+
 ## 7. Proposed solution
 
 ### 7.1 Architecture
@@ -216,6 +223,8 @@ and verified order lookup. SQL is never assembled from user text.
 - AC-10: Docker Compose starts the service and the documented API smoke test succeeds.
 - AC-11: The repository contains three to five varied conversation examples, including
   at least one data lookup and one policy application.
+- AC-12: Streamlit presents the agent through the FastAPI backend, exposes quick demo
+  scenarios, and does not require the frontend to access the database directly.
 
 ## 11. Delivery plan
 
@@ -227,7 +236,8 @@ and verified order lookup. SQL is never assembled from user text.
 4. **Agent:** deterministic router, optional function-calling provider, and response
    policy.
 5. **Interface:** FastAPI route, request/response DTOs, health check, and CLI smoke path.
-6. **Verification:** unit tests, integration tests, Docker smoke test, examples, README,
+6. **Presentation:** optional Streamlit demonstration client consuming the API.
+7. **Verification:** unit tests, integration tests, Docker smoke test, examples, README,
    limitations, and code review.
 
 Each implementation stage is committed separately in the local project history.
@@ -237,6 +247,6 @@ Each implementation stage is committed separately in the local project history.
 The workspace currently contains the raw challenge data, SQLite ingestion, policy PDF
 extraction, lexical policy retrieval, deterministic support agent, optional
 OpenAI-compatible function-calling adapter, FastAPI interface, Docker configuration,
-unit tests, and four conversation examples. The remaining verification step is to run
+Streamlit demonstration interface, unit tests, and four conversation examples. The remaining verification step is to run
 the dependency-backed pytest suite and real-data smoke test in an environment with
 network/package access or a working Docker daemon.

@@ -10,7 +10,8 @@ and store policy manual as its sources of truth.
 docker compose up --build
 ```
 
-The API is then available at `http://localhost:8000`.
+The API is available at `http://localhost:8000` and the demonstration interface at
+`http://localhost:8501`.
 
 ```bash
 curl http://localhost:8000/health
@@ -19,6 +20,10 @@ curl -X POST http://localhost:8000/chat \
   -H 'Content-Type: application/json' \
   -d '{"message":"Quanto custa o Takamine GD20?"}'
 ```
+
+Open `http://localhost:8501` for the Streamlit demonstration interface. It calls the
+same FastAPI backend, so the visual demo and direct API use share exactly the same
+catalog, policy retrieval, order verification, and LLM configuration.
 
 The default `AGENT_MODE=offline` requires no model key or network at runtime. It uses a
 deterministic router and the same controlled tools used by the LLM mode, which makes the
@@ -31,7 +36,7 @@ Python 3.10 or newer is required.
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-python -m pip install -e '.[dev]'
+python -m pip install -e '.[dev,frontend]'
 python -m scripts.seed_database
 uvicorn app.main:app --reload
 ```
@@ -92,6 +97,7 @@ The project follows a small layered design:
   response formatting;
 - `app/infrastructure`: SQLite database, CSV seeding, PDF extraction, and repositories;
 - `app/presentation`: FastAPI DTOs, service, controller, and routes;
+- `frontend`: optional Streamlit demonstration client that consumes the FastAPI contract;
 - `data/raw`: unchanged challenge source files.
 
 Operational CSVs are loaded into SQLite with parameterized queries. The eight-page PDF is
