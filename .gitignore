@@ -6,6 +6,7 @@ __pycache__/
 .env
 .git-history/
 data/app.db
+docs/INTERVIEW_NOTES_PRIVATE.md
 dist/
 build/
 *.egg-info/
