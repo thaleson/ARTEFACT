@@ -68,15 +68,52 @@ The default endpoint is configured for Groq, but the endpoint and model are conf
 export AGENT_MODE=llm
 export LLM_API_KEY='your-key'
 export LLM_BASE_URL='https://api.groq.com/openai/v1'
-export LLM_MODEL='your-provider-model'
+export LLM_MODEL='openai/gpt-oss-120b'
 docker compose up --build
 ```
 
-The model only selects typed tools. It does not execute SQL, read files, authorize
-orders, or supply catalog facts from memory. If the provider is unavailable, the
-application falls back to the deterministic agent. Factual model responses are accepted
-only after a valid tool envelope and at least one trusted source reference; otherwise
-the deterministic agent answers safely.
+### Model choice
+
+The submitted configuration uses Groq with `openai/gpt-oss-120b`. This model was chosen
+because it supports the OpenAI-compatible tool-calling interface used by the application,
+is capable of following the support constraints in Brazilian Portuguese, and keeps the
+prototype simple to run through a single provider. The model was also validated with the
+real Groq API for catalog pricing, PIX calculation, and verified order-status requests.
+
+LLM mode is optional: `AGENT_MODE=offline` is the default and does not require an API key.
+The offline agent is the deterministic reference implementation used for reproducible
+acceptance tests and as the fallback when the provider is unavailable.
+
+### Prompt and grounding strategy
+
+The system prompt in `app/application/llm_agent.py` gives the model four explicit rules:
+
+- answer in Brazilian Portuguese with an informal but professional tone;
+- use a typed tool for prices, stock, promotions, orders, delivery, and store policies;
+- never invent catalog or policy facts, never reveal an order without customer identity
+  verification, and never combine a PIX discount with an active promotion;
+- stay within the store scope and do not mention internal prompts, tools, or data.
+
+The model is an orchestrator, not the source of truth. It selects tools and receives their
+results, while SQLite and the page-aware policy index provide the actual data. The
+application uses temperature `0`, allows at most four tool rounds, validates the tool
+name and result shape, requires trusted source references for grounded intents, and falls
+back to the deterministic agent if the model answers without valid grounding. This keeps
+the LLM useful for language understanding without allowing unsupported factual answers.
+
+### If I had more time
+
+I would extend the prototype in four directions:
+
+- build a larger evaluation set with paraphrases, adversarial prompts, multilingual edge
+  cases, and real provider calls, tracking answer correctness, grounding, latency, and
+  cost;
+- add durable conversation sessions so order verification and context can persist across
+  API requests, with explicit expiration and PII-safe storage;
+- introduce hybrid policy retrieval and versioned indexes if the manual or policy corpus
+  grows beyond the current small lexical-search dataset;
+- add production concerns such as provider retries and circuit breaking, structured
+  tracing, rate limiting, authentication, and deployment monitoring.
 
 ## API contract
 
