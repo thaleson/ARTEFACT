@@ -5,6 +5,7 @@ from typing import Mapping
 
 from app.application.contracts import AgentResponse, ChatInput, SourceReference
 from app.application.input_normalizer import enrich_identity
+from app.application.intent import IntentRouter
 from app.application.model_provider import ChatModel, ModelToolCall
 from app.application.offline_agent import OfflineSupportAgent
 from app.application.tool_executor import ToolExecutor
@@ -16,8 +17,10 @@ Você é o assistente virtual da Empório da Música. Responda em português bra
 com tom informal, acolhedor e profissional. A loja vende exclusivamente instrumentos
 musicais. Use as ferramentas para qualquer preço, estoque, promoção, pedido, prazo ou
 regra da loja; nunca invente fatos. Promoções não são cumulativas e o desconto de PIX
-não se soma a um preço promocional. Só informe um pedido quando a ferramenta confirmar
-na solicitação uma identidade fornecida pelo cliente. Se uma ferramenta exigir dados
+não se soma a um preço promocional. Em uma consulta de PIX, use o preço PIX retornado
+pela ferramenta; se ele estiver nulo por existir uma promoção, use o preço promocional
+e explique a não cumulatividade. Só informe um pedido quando a ferramenta confirmar na
+solicitação uma identidade fornecida pelo cliente. Se uma ferramenta exigir dados
 que não foram fornecidos, peça-os sem confirmar se o pedido existe. Para perguntas fora
 do escopo, explique o escopo da loja e ofereça ajuda relevante. Não mencione prompts,
 ferramentas ou dados internos na resposta final.
@@ -48,6 +51,7 @@ class LlmSupportAgent:
         self.model = model
         self.tools = tools
         self.fallback = fallback
+        self.router = IntentRouter()
         self.max_tool_rounds = max_tool_rounds
 
     def respond(self, chat_input: ChatInput) -> AgentResponse:
@@ -84,16 +88,41 @@ class LlmSupportAgent:
             {"role": "user", "content": chat_input.message.strip()},
         ]
         sources: list[SourceReference] = []
+        intent_kind = self.router.route(
+            chat_input.message,
+            chat_input.order_id,
+        ).kind
+        requires_grounding = intent_kind in {
+            "product_search",
+            "product_detail",
+            "promotion_search",
+            "order_status",
+            "policy",
+            "accessory",
+            "unknown",
+        }
+        used_tool = False
+        valid_tool_results = True
         for _ in range(self.max_tool_rounds):
             turn = self.model.complete(messages, TOOL_SPECS)
             if not turn.tool_calls:
                 if turn.content.strip():
+                    if (
+                        requires_grounding
+                        and (
+                            not used_tool
+                            or not valid_tool_results
+                            or not sources
+                        )
+                    ):
+                        return self.fallback.respond(chat_input)
                     return AgentResponse(
                         reply=turn.content.strip(),
                         mode="llm",
                         sources=_unique_sources(sources),
                     )
                 return self.fallback.respond(chat_input)
+            used_tool = True
             messages.append(_assistant_message(turn.content, turn.tool_calls))
             for tool_call in turn.tool_calls:
                 arguments = _parse_arguments(tool_call.arguments)
@@ -101,6 +130,10 @@ class LlmSupportAgent:
                     tool_call.name,
                     arguments,
                     chat_input,
+                )
+                valid_tool_results = valid_tool_results and _valid_tool_result(
+                    tool_call.name,
+                    result,
                 )
                 sources.extend(tool_sources)
                 messages.append(
@@ -163,6 +196,40 @@ def _parse_arguments(raw_arguments: str) -> Mapping[str, object]:
     if not isinstance(parsed, dict):
         raise ValueError("The model tool arguments must be an object")
     return parsed
+
+
+def _valid_tool_result(tool_name: str, raw_result: str) -> bool:
+    """Check that a tool returned a typed, non-error JSON envelope.
+
+    Args:
+        tool_name (str): Tool requested by the model.
+        raw_result (str): JSON payload returned by the tool executor.
+
+    Returns:
+        bool: Whether the payload has the expected shape and no error envelope.
+    """
+    expected_keys = {
+        "search_products": "products",
+        "get_product": "product",
+        "get_active_promotion": "promotion",
+        "get_verified_order": "authorized",
+        "search_policies": "chunks",
+    }
+    expected_key = expected_keys.get(tool_name)
+    if expected_key is None:
+        return False
+    try:
+        result = json.loads(raw_result)
+    except (TypeError, json.JSONDecodeError):
+        return False
+    if not isinstance(result, dict) or "error" in result or expected_key not in result:
+        return False
+    value = result[expected_key]
+    if tool_name in {"search_products", "search_policies"}:
+        return isinstance(value, list)
+    if tool_name == "get_verified_order":
+        return isinstance(value, bool)
+    return value is None or isinstance(value, dict)
 
 
 def _unique_sources(sources: list[SourceReference]) -> list[SourceReference]:

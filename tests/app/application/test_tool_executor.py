@@ -49,6 +49,39 @@ def test_get_product_and_active_promotion_include_calculated_price(
     assert json.loads(promotion_result)["promotional_price"] == "R$ 5.519,08"
 
 
+def test_get_product_includes_non_promotional_pix_price(
+    repositories: dict[str, object],
+) -> None:
+    executor = make_executor(repositories)
+
+    raw_result, _ = executor.execute(
+        "get_product",
+        {"product_id": 95},
+        ChatInput("Quanto custa o Takamine GD20 no PIX?"),
+    )
+
+    product = json.loads(raw_result)["product"]
+    assert product["pix_price"] == "R$ 2.089,05"
+    assert product["pix_discount_applied"] is True
+
+
+def test_get_product_does_not_stack_pix_on_promotion(
+    repositories: dict[str, object],
+) -> None:
+    executor = make_executor(repositories)
+
+    raw_result, _ = executor.execute(
+        "get_product",
+        {"product_id": 94},
+        ChatInput("Quanto custa o Taylor 110e no PIX?"),
+    )
+
+    product = json.loads(raw_result)["product"]
+    assert product["pix_price"] is None
+    assert product["pix_discount_applied"] is False
+    assert "not cumulative" in product["pix_note"]
+
+
 def test_order_tool_uses_request_identity_instead_of_model_arguments(
     repositories: dict[str, object],
 ) -> None:

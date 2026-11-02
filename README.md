@@ -74,7 +74,9 @@ docker compose up --build
 
 The model only selects typed tools. It does not execute SQL, read files, authorize
 orders, or supply catalog facts from memory. If the provider is unavailable, the
-application falls back to the deterministic agent.
+application falls back to the deterministic agent. Factual model responses are accepted
+only after a valid tool envelope and at least one trusted source reference; otherwise
+the deterministic agent answers safely.
 
 ## API contract
 
@@ -92,6 +94,8 @@ application falls back to the deterministic agent.
 without identity verification receive a safe clarification and do not reveal whether an
 order exists. In a text-only client, the agent can also extract an explicitly written
 email or Brazilian phone number from the same message.
+The Streamlit client retains the latest order number mentioned in the conversation, so the
+customer can provide the email or phone in a follow-up message.
 
 ## Architecture
 
@@ -115,7 +119,8 @@ database was intentionally omitted because the supplied policy corpus is small a
 - An item is available only when `status = active` and `stock_quantity > 0`.
 - Only `is_active = 1` promotions are advertised.
 - Promotional answers show original price, discount percentage, and calculated price;
-  PIX is never stacked on a promotion.
+  PIX is calculated from the table price when no promotion is active and is never stacked on
+  a promotion.
 - Recorded order totals are treated as historical truth even when they differ from a
   current catalog sum.
 - Customer PII is used only for order verification and is not included in normal replies

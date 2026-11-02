@@ -42,7 +42,7 @@ def process_messages(client: BackendClient) -> None:
     append_message("user", normalized_message)
     with st.spinner("Consultando o catálogo e as políticas..."):
         try:
-            result = client.chat(normalized_message, order_context())
+            result = client.chat(normalized_message, order_context(normalized_message))
         except httpx.HTTPError:
             result = _connection_error_result()
         except ValueError:

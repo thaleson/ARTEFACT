@@ -8,6 +8,7 @@ from app.domain.models import Product, Promotion
 
 
 CENT = Decimal("0.01")
+PIX_DISCOUNT = Decimal("0.05")
 
 
 def is_available(product: Product) -> bool:
@@ -40,6 +41,19 @@ def promotional_price(product: Product, promotion: Promotion) -> Decimal:
     price = product.price_brl * (
         Decimal("100") - promotion.discount_percent
     ) / Decimal("100")
+    return price.quantize(CENT, rounding=ROUND_HALF_UP)
+
+
+def pix_price(product: Product) -> Decimal:
+    """Calculate the cash price after the store's PIX discount.
+
+    Args:
+        product (Product): Catalog product price used as the discount base.
+
+    Returns:
+        Decimal: Price with the five-percent PIX discount, rounded to cents.
+    """
+    price = product.price_brl * (Decimal("1") - PIX_DISCOUNT)
     return price.quantize(CENT, rounding=ROUND_HALF_UP)
 
 

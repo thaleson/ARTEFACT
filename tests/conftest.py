@@ -31,17 +31,20 @@ class StaticPolicyExtractor:
             PolicyChunk(
                 3,
                 3,
-                "PIX tem 5% de desconto. Cartão de crédito em até 12x sem juros.",
+                "PIX tem 5% de desconto. Cartão de crédito em até 12x sem juros. "
+                "Parcelamento de 4x a 6x sem juros, parcela mínima de R$ 80,00.",
             ),
             PolicyChunk(
                 4,
                 4,
                 "Compras online podem ser devolvidas em até 7 dias corridos "
-                "após o recebimento, sem necessidade de justificativa.",
+                "após o recebimento, sem necessidade de justificativa. "
+                "Produtos com defeito podem ser trocados em até 30 dias corridos.",
             ),
             PolicyChunk(
                 5,
                 5,
+                "Entregas para outras cidades: prazo estimado por modalidade. "
                 "PAC: 5 a 12 dias úteis. SEDEX: 2 a 5 dias úteis.",
             ),
             PolicyChunk(
@@ -55,6 +58,11 @@ class StaticPolicyExtractor:
                 7,
                 "Todos os produtos possuem garantia legal de 90 dias contra "
                 "defeitos de fabricação.",
+            ),
+            PolicyChunk(
+                8,
+                6,
+                "O canal de WhatsApp (67) 3321-4500 é o principal meio de atendimento remoto.",
             ),
         ]
 

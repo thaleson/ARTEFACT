@@ -7,6 +7,7 @@ from app.domain.rules import (
     is_available,
     normalize_phone,
     normalize_text,
+    pix_price,
     promotional_price,
 )
 
@@ -50,6 +51,10 @@ def test_promotional_price_rounds_to_brl_cents() -> None:
 def test_promotional_price_rejects_inactive_promotion() -> None:
     with pytest.raises(ValueError, match="inactive"):
         promotional_price(make_product(), make_promotion(active=False))
+
+
+def test_pix_price_applies_five_percent_discount() -> None:
+    assert pix_price(make_product()) == Decimal("95.00")
 
 
 def test_normalizers_remove_accents_and_phone_punctuation() -> None:

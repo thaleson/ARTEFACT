@@ -1,5 +1,7 @@
 """Deterministic support agent for local execution and automated verification."""
 
+import re
+
 from app.application.contracts import AgentResponse, ChatInput, SourceReference
 from app.application.formatting import format_order, format_product_line
 from app.application.input_normalizer import enrich_identity
@@ -10,7 +12,7 @@ from app.domain.ports import (
     PolicyRepository,
     PromotionRepository,
 )
-from app.domain.rules import is_available
+from app.domain.rules import is_available, normalize_phone, normalize_text
 
 
 class OfflineSupportAgent:
@@ -58,6 +60,11 @@ class OfflineSupportAgent:
         if not message:
             raise ValueError("Message cannot be empty")
         intent = self.router.route(message, chat_input.order_id)
+        if _is_identity_follow_up(chat_input):
+            intent = DetectedIntent(
+                kind="order_status",
+                order_id=intent.order_id or chat_input.order_id,
+            )
         handlers = {
             "accessory": self._accessory_response,
             "order_status": lambda: self._order_response(intent, chat_input),
@@ -145,6 +152,7 @@ class OfflineSupportAgent:
             AgentResponse: Matching products and catalog source references.
         """
         products = self.catalog.search_products(
+            query=intent.product_query,
             category_id=intent.category_id,
             max_price=intent.max_price,
             available_only=True,
@@ -210,6 +218,7 @@ class OfflineSupportAgent:
         detail = format_product_line(
             product,
             promotion if is_available(product) else None,
+            payment_method=intent.payment_method,
         )
         return AgentResponse(
             reply=f"Aqui estão os dados do catálogo:\n{detail}\n{product.description}",
@@ -266,9 +275,13 @@ class OfflineSupportAgent:
                 "endereco": 1,
                 "horario funcionamento": 1,
                 "devolucao arrependimento compra online": 1,
+                "parcelamento pagamento": 2,
                 "pagamento PIX cartao boleto": 1,
                 "garantia legal fabricante": 1,
                 "privacidade LGPD dados": 2,
+                "whatsapp atendimento remoto": 1,
+                "telefone WhatsApp": 1,
+                "contato": 1,
             }
             query = intent.policy_query or ""
             chunks = self.policies.search(query, limit=policy_limits.get(query, 3))
@@ -323,3 +336,34 @@ def _compact(content: str, maximum_length: int = 500) -> str:
     if len(compacted) <= maximum_length:
         return compacted
     return compacted[: maximum_length - 3].rstrip() + "..."
+
+
+def _is_identity_follow_up(chat_input: ChatInput) -> bool:
+    """Recognize a standalone identity message sent after an order prompt."""
+    if not (chat_input.customer_email or chat_input.customer_phone):
+        return False
+    normalized = normalize_text(chat_input.message)
+    identity_label = any(
+        re.search(rf"(?<!\w){term}(?!\w)", normalized)
+        for term in ("email", "e mail", "telefone", "celular")
+    )
+    raw_value = chat_input.message.strip()
+    standalone_email = bool(
+        chat_input.customer_email
+        and raw_value.casefold() == chat_input.customer_email.casefold()
+    )
+    standalone_phone = bool(
+        chat_input.customer_phone
+        and normalize_phone(raw_value) == normalize_phone(chat_input.customer_phone)
+    )
+    if not identity_label and not (standalone_email or standalone_phone):
+        return False
+    return not any(
+        re.search(rf"(?<!\w){term}(?!\w)", normalized)
+        for term in (
+            "produto", "catalogo", "instrumento", "preco", "custa", "valor",
+            "promocao", "desconto", "troca", "devolucao", "pagamento", "entrega",
+            "frete", "garantia", "privacidade", "horario", "funcionamento",
+            "endereco", "onde fica",
+        )
+    )

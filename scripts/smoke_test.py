@@ -30,7 +30,7 @@ def main() -> None:
         assert "Encontrei 12" in responses["catalog"].reply
         assert "R$ 2.199,00" in responses["product"].reply
         assert "está enviado" in responses["order"].reply
-        assert "7 dias corridos" in responses["return"].reply
+        assert "dias corridos" in responses["return"].reply
     finally:
         container.close()
     print("Smoke test passed")

@@ -1,7 +1,11 @@
 """Provider abstractions for optional OpenAI-compatible chat models."""
 
+import logging
 from dataclasses import dataclass
 from typing import Mapping, Protocol, Sequence
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -85,6 +89,7 @@ class OpenAICompatibleChatModel:
                 temperature=0,
             )
         except Exception as exc:
+            LOGGER.exception("LLM provider request failed for model %s", self.model)
             raise RuntimeError("The configured LLM provider is unavailable") from exc
         message = response.choices[0].message
         tool_calls = [

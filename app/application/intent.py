@@ -13,6 +13,7 @@ class DetectedIntent:
 
     kind: str
     product_query: str | None = None
+    payment_method: str | None = None
     category_id: int | None = None
     max_price: Decimal | None = None
     policy_query: str | None = None
@@ -37,7 +38,13 @@ class IntentRouter:
             DetectedIntent: Normalized intent and extracted parameters.
         """
         normalized = normalize_text(message)
-        if _contains_any(normalized, ("corda", "palheta", "cabo", "case", "pedal", "amplificador")):
+        accessory_terms = (
+            "corda", "cordas", "palheta", "palhetas", "cabo", "cabos",
+            "case", "cases", "pedal", "pedais", "amplificador", "amplificadores",
+        )
+        if _contains_any(normalized, accessory_terms) and not _is_stringed_instrument_variant(
+            normalized
+        ):
             return DetectedIntent(kind="accessory")
         order_terms = ("pedido", "rastreamento", "rastreio")
         if _contains_any(normalized, order_terms) and _contains_any(
@@ -47,12 +54,48 @@ class IntentRouter:
                 kind="order_status",
                 order_id=provided_order_id or _extract_order_id(message),
             )
+
+        category_id = _category_id(normalized)
+        detail_terms = (
+            "preco", "custa", "valor", "detalhes", "especificacao", "tem",
+            "estoque", "disponibilidade",
+        )
+        product_query = _product_query(normalized)
+        has_product_reference = (
+            category_id is not None
+            or bool(re.search(r"\d", product_query))
+            or not _contains_any(
+                normalized,
+                (
+                    "endereco", "localizacao", "horario", "funcionamento", "pagamento",
+                    "troca", "devolucao", "devolver", "arrependimento", "arrependi",
+                    "frete", "garantia", "privacidade", "lgpd", "whatsapp", "telefone",
+                    "email", "e mail", "entrega", "prazo", "envio", "correios", "pac", "sedex",
+                    "pix", "cartao", "boleto", "defeito", "defeitos", "parcelar",
+                    "parcelamento", "vezes",
+                ),
+            )
+        )
+        if (
+            _contains_any(normalized, detail_terms)
+            and _extract_max_price(message) is None
+            and product_query
+            and has_product_reference
+            and _instrument_variant_query(normalized) is None
+        ):
+            return DetectedIntent(
+                kind="product_detail",
+                product_query=product_query,
+                payment_method=_payment_method(normalized),
+            )
+
         policy_terms = (
             "endereco", "onde fica", "localizacao", "horario", "funcionamento",
-            "pagamento", "troca", "devolucao", "devolver", "arrependimento",
+            "pagamento", "pagamentos", "troca", "devolucao", "devolver", "arrependimento",
             "arrependi", "frete", "garantia", "privacidade", "lgpd", "whatsapp",
-            "telefone", "email", "entrega", "prazo", "envio", "correios", "pac",
-            "sedex", "pix", "cartao", "boleto",
+            "telefone", "email", "e mail", "entrega", "prazo", "envio", "correios", "pac",
+            "sedex", "pix", "cartao", "boleto", "defeito", "defeitos", "parcelar",
+            "parcelamento", "vezes",
         )
         if _contains_any(normalized, policy_terms):
             return DetectedIntent(
@@ -64,25 +107,23 @@ class IntentRouter:
                 kind="order_status",
                 order_id=provided_order_id or _extract_order_id(message),
             )
-        detail_terms = ("preco", "custa", "valor", "detalhes", "especificacao")
-        if _contains_any(normalized, detail_terms) and _extract_max_price(message) is None:
-            return DetectedIntent(
-                kind="product_detail",
-                product_query=_product_query(normalized),
-            )
         if _contains_any(normalized, ("promocao", "promocoes", "desconto")):
             product_query = _product_query(normalized)
             return DetectedIntent(
                 kind="product_detail" if product_query else "promotion_search",
                 product_query=product_query or None,
             )
-        category_id = _category_id(normalized)
         max_price = _extract_max_price(message)
         if category_id is not None or max_price is not None or _contains_any(
-            normalized, ("produto", "catalogo", "disponivel", "instrumento")
+            normalized,
+            (
+                "produto", "produtos", "catalogo", "disponivel", "disponiveis",
+                "instrumento", "instrumentos",
+            ),
         ):
             return DetectedIntent(
                 kind="product_search",
+                product_query=_instrument_variant_query(normalized),
                 category_id=category_id,
                 max_price=max_price,
             )
@@ -99,7 +140,10 @@ def _contains_any(value: str, terms: tuple[str, ...]) -> bool:
     Returns:
         bool: Whether at least one term is present.
     """
-    return any(term in value for term in terms)
+    return any(
+        re.search(rf"(?<!\w){re.escape(term)}(?!\w)", value) is not None
+        for term in terms
+    )
 
 
 def _category_id(message: str) -> int | None:
@@ -112,15 +156,24 @@ def _category_id(message: str) -> int | None:
         int | None: Matching category ID, if one can be identified.
     """
     category_terms = {
-        1: ("guitarra",),
-        2: ("baixo", "contrabaixo"),
-        3: ("bateria", "percussao"),
-        4: ("teclado", "piano", "sintetizador"),
-        5: ("violao", "violo"),
-        6: ("flauta", "clarinete", "saxofone", "madeira"),
-        7: ("trompete", "trombone", "tuba", "metais"),
-        8: ("violino", "viola", "violoncelo", "orquestral"),
-        9: ("ukulele",),
+        1: ("guitarra", "guitarras"),
+        2: ("baixo", "baixos", "contrabaixo", "contrabaixos"),
+        3: ("bateria", "baterias", "percussao"),
+        4: (
+            "teclado", "teclados", "piano", "pianos", "sintetizador", "sintetizadores",
+        ),
+        5: ("violao", "violoes"),
+        6: (
+            "flauta", "flautas", "clarinete", "clarinetes", "saxofone", "saxofones", "madeira",
+        ),
+        7: (
+            "trompete", "trompetes", "trombone", "trombones", "tuba", "tubas", "metais",
+        ),
+        8: (
+            "violino", "violinos", "viola", "violas", "violoncelo", "violoncelos",
+            "orquestral", "orquestrais",
+        ),
+        9: ("ukulele", "ukuleles"),
     }
     for category_id, terms in category_terms.items():
         if _contains_any(message, terms):
@@ -138,7 +191,8 @@ def _extract_order_id(message: str) -> int | None:
         int | None: Parsed order ID, if present.
     """
     match = re.search(
-        r"(?:pedido|order)\s*(?:n[úu]mero|n[ºo°]?|#)?\s*(\d+)",
+        r"\b(?:pedido|order)\s*(?:de\s+)?"
+        r"(?:(?:n[úu]mero|n[ºo°]?|#)\s*)?[:#-]?\s*(\d+)",
         message,
         re.IGNORECASE,
     )
@@ -154,11 +208,14 @@ def _extract_max_price(message: str) -> Decimal | None:
     Returns:
         Decimal | None: Parsed maximum price, if a supported pattern is found.
     """
-    pattern = r"(?:até|ate|menos de|abaixo de|no máximo|maximo)\s*(?:r\$\s*)?([\d.,]+)"
+    pattern = (
+        r"(?:até|ate|menos de|abaixo de|no máximo|maximo)\s*"
+        r"(?:r\$\s*)?(\d+(?:[.,]\d+)*)"
+    )
     match = re.search(pattern, message, re.IGNORECASE)
     if not match:
         return None
-    raw_value = match.group(1).replace(".", "").replace(",", ".")
+    raw_value = _normalize_price_token(match.group(1))
     try:
         return Decimal(raw_value)
     except InvalidOperation:
@@ -176,9 +233,11 @@ def _product_query(normalized_message: str) -> str:
     """
     stop_words = {
         "quanto", "custa", "qual", "preco", "valor", "do", "da", "de", "o", "a",
-        "produto", "tem", "detalhes", "sobre", "me", "fale", "especificacao",
+        "produto", "tem", "voce", "voces", "detalhes", "sobre", "me", "fale", "especificacao",
         "promocao", "promocoes", "desconto", "existe", "ainda", "ativo", "ativa",
-        "ativos", "ativas", "quais", "estao", "ha", "existem",
+        "ativos", "ativas", "quais", "estao", "ha", "existem", "em", "no", "na",
+        "estoque", "disponivel", "disponiveis", "disponibilidade", "pix", "real", "reais",
+        "via", "por", "pagamento", "pagamentos",
     }
     terms = [term for term in normalized_message.split() if term not in stop_words]
     return " ".join(terms)
@@ -199,21 +258,75 @@ def _policy_query(normalized_message: str, original_message: str) -> str:
         normalized_message, ("horario", "funcionamento")
     ):
         return "endereco empresa horario funcionamento"
+    if _contains_any(normalized_message, ("whatsapp",)) and _contains_any(
+        normalized_message, ("telefone", "email", "e mail")
+    ):
+        return "telefone WhatsApp email"
     topic_queries = (
         (address_terms, "endereco"),
         (
             ("devolucao", "devolver", "arrependimento", "arrependi"),
             "devolucao arrependimento compra online",
         ),
-        (("troca", "defeito"), "troca defeito produto"),
+        (("troca", "defeito", "defeitos"), "troca defeito produto"),
         (("horario", "funcionamento"), "horario funcionamento"),
         (("entrega", "prazo", "frete", "envio"), "entrega prazo frete PAC SEDEX"),
-        (("pagamento", "pix", "cartao", "boleto"), "pagamento PIX cartao boleto"),
+        (("parcelar", "parcelamento", "vezes"), "parcelamento pagamento"),
+        (
+            (
+                "pagamento", "pagamentos", "pix", "cartao", "boleto", "parcelar",
+                "parcelamento", "vezes",
+            ),
+            "pagamento PIX cartao boleto",
+        ),
         (("garantia",), "garantia legal fabricante"),
         (("privacidade", "lgpd"), "privacidade LGPD dados"),
-        (("whatsapp", "telefone", "email"), "telefone WhatsApp email"),
+        (("whatsapp",), "whatsapp atendimento remoto"),
+        (("telefone",), "telefone WhatsApp"),
+        (("email", "e mail"), "contato"),
+        (("whatsapp", "telefone", "email", "e mail"), "telefone WhatsApp email"),
     )
     for terms, query in topic_queries:
         if _contains_any(normalized_message, terms):
             return query
     return original_message
+
+
+def _is_stringed_instrument_variant(normalized_message: str) -> bool:
+    """Recognize numbered-string instruments before accessory classification."""
+    return (
+        re.search(r"\b\d+\s+cordas?\b", normalized_message) is not None
+        and _category_id(normalized_message) in {1, 2, 5, 9}
+    ) or (
+        _category_id(normalized_message) == 8
+        and _contains_any(normalized_message, ("orquestral", "orquestrais"))
+    )
+
+
+def _instrument_variant_query(normalized_message: str) -> str | None:
+    """Extract a numbered-string variant for a category-constrained search."""
+    match = re.search(r"\b(\d+)\s+cordas?\b", normalized_message)
+    return f"{match.group(1)} cordas" if match else None
+
+
+def _payment_method(normalized_message: str) -> str | None:
+    """Extract a supported payment method when it qualifies a product price."""
+    return "pix" if _contains_any(normalized_message, ("pix",)) else None
+
+
+def _normalize_price_token(raw_value: str) -> str:
+    """Normalize Brazilian or decimal price notation to Decimal input text."""
+    value = raw_value.replace(" ", "")
+    if "," in value and "." in value:
+        if value.rfind(",") > value.rfind("."):
+            return value.replace(".", "").replace(",", ".")
+        return value.replace(",", "")
+    if "," in value:
+        return value.replace(",", ".")
+    if value.count(".") > 1 and len(value.rsplit(".", 1)[-1]) == 2:
+        integer_part, decimal_part = value.rsplit(".", 1)
+        return f"{integer_part.replace('.', '')}.{decimal_part}"
+    parts = value.split(".")
+    if len(parts) > 1 and len(parts[-1]) == 3:
+        return "".join(parts)
+    return value

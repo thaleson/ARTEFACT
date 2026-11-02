@@ -13,7 +13,7 @@ from app.domain.ports import (
     PolicyRepository,
     PromotionRepository,
 )
-from app.domain.rules import is_available, promotional_price
+from app.domain.rules import is_available, normalize_text, pix_price, promotional_price
 
 
 class ToolExecutor:
@@ -80,7 +80,6 @@ class ToolExecutor:
         Returns:
             tuple[str, list[SourceReference]]: Serialized products and catalog sources.
         """
-        del chat_input
         query = _optional_string(arguments.get("query"))
         category_id = _optional_int(arguments.get("category_id"))
         max_price = _optional_decimal(arguments.get("max_price"))
@@ -90,19 +89,20 @@ class ToolExecutor:
             max_price=max_price,
             available_only=True,
         )
-        result = [
-            {
+        result = []
+        for product in products:
+            promotion = self.promotions.get_active_for_product(product.product_id)
+            product_result = {
                 "product_id": product.product_id,
                 "name": product.name,
                 "price": format_brl(product.price_brl),
                 "stock_quantity": product.stock_quantity,
                 "description": product.description,
-                "promotion": _promotion_data(
-                    product, self.promotions.get_active_for_product(product.product_id)
-                ),
+                "promotion": _promotion_data(product, promotion),
             }
-            for product in products
-        ]
+            if _is_pix_request(chat_input.message):
+                product_result.update(_pix_data(product, promotion))
+            result.append(product_result)
         return json.dumps({"products": result}, ensure_ascii=False), [
             SourceReference("catalog", f"product:{product.product_id}")
             for product in products
@@ -122,7 +122,6 @@ class ToolExecutor:
         Returns:
             tuple[str, list[SourceReference]]: Serialized product and catalog source.
         """
-        del chat_input
         product_id = _required_int(arguments.get("product_id"))
         product = self.catalog.get_product(product_id)
         if product is None:
@@ -138,6 +137,8 @@ class ToolExecutor:
             "description": product.description,
             "promotion": _promotion_data(product, promotion),
         }
+        if _is_pix_request(chat_input.message):
+            result.update(_pix_data(product, promotion))
         return json.dumps({"product": result}, ensure_ascii=False), [
             SourceReference("catalog", f"product:{product.product_id}")
         ]
@@ -156,20 +157,21 @@ class ToolExecutor:
         Returns:
             tuple[str, list[SourceReference]]: Promotion payload and source reference.
         """
-        del chat_input
         product_id = _required_int(arguments.get("product_id"))
         product = self.catalog.get_product(product_id)
         promotion = self.promotions.get_active_for_product(product_id)
         if product is None or promotion is None or not is_available(product):
             return json.dumps({"promotion": None}), []
-        return json.dumps(
-            {
-                "promotion": _promotion_data(product, promotion),
-                "original_price": format_brl(product.price_brl),
-                "promotional_price": format_brl(promotional_price(product, promotion)),
-            },
-            ensure_ascii=False,
-        ), [SourceReference("promotion", f"promotion:product:{product_id}")]
+        result = {
+            "promotion": _promotion_data(product, promotion),
+            "original_price": format_brl(product.price_brl),
+            "promotional_price": format_brl(promotional_price(product, promotion)),
+        }
+        if _is_pix_request(chat_input.message):
+            result.update(_pix_data(product, promotion))
+        return json.dumps(result, ensure_ascii=False), [
+            SourceReference("promotion", f"promotion:product:{product_id}")
+        ]
 
     def _get_verified_order(
         self,
@@ -238,6 +240,30 @@ class ToolExecutor:
             SourceReference("policy", f"page:{chunk.page_number}")
             for chunk in chunks
         ]
+
+
+def _is_pix_request(message: str) -> bool:
+    """Return whether the customer explicitly asks for a PIX price."""
+    return "pix" in normalize_text(message).split()
+
+
+def _pix_data(
+    product: Product,
+    promotion: Promotion | None,
+) -> dict[str, object]:
+    """Serialize PIX pricing without stacking it on an active promotion."""
+    if not is_available(product):
+        return {"pix_price": None, "pix_discount_applied": False}
+    if promotion is not None:
+        return {
+            "pix_price": None,
+            "pix_discount_applied": False,
+            "pix_note": "The PIX discount is not cumulative with the active promotion.",
+        }
+    return {
+        "pix_price": format_brl(pix_price(product)),
+        "pix_discount_applied": True,
+    }
 
 
 def _promotion_data(

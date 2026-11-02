@@ -1,7 +1,7 @@
 import json
 from unittest.mock import Mock
 
-from app.application.contracts import AgentResponse, ChatInput
+from app.application.contracts import AgentResponse, ChatInput, SourceReference
 from app.application.llm_agent import LlmSupportAgent
 from app.application.model_provider import ModelToolCall, ModelTurn
 
@@ -34,7 +34,10 @@ def make_fallback() -> Mock:
 
 def test_llm_agent_executes_tool_and_returns_model_answer() -> None:
     tool_executor = Mock()
-    tool_executor.execute.return_value = ('{"chunks": []}', [])
+    tool_executor.execute.return_value = (
+        '{"chunks": [{"page": 2, "content": "09:00 às 18:00"}]}',
+        [SourceReference("policy", "page:2")],
+    )
     model = ModelWithToolThenAnswer()
     fallback = make_fallback()
     agent = LlmSupportAgent(model, tool_executor, fallback)
@@ -54,6 +57,62 @@ def test_llm_agent_falls_back_on_provider_error() -> None:
     agent = LlmSupportAgent(model, Mock(), fallback)
 
     response = agent.respond(ChatInput("Qual o horário?"))
+
+    assert response.reply == "fallback"
+    fallback.respond.assert_called_once()
+
+
+def test_llm_agent_rejects_unverified_factual_answer() -> None:
+    model = Mock()
+    model.complete.return_value = ModelTurn(
+        content="O Taylor custa R$ 1,00.",
+        tool_calls=[],
+    )
+    fallback = make_fallback()
+    agent = LlmSupportAgent(model, Mock(), fallback)
+
+    response = agent.respond(ChatInput("Quanto custa o Taylor 110e?"))
+
+    assert response.reply == "fallback"
+    fallback.respond.assert_called_once()
+
+
+def test_llm_agent_falls_back_for_unrecognized_factual_request() -> None:
+    model = Mock()
+    model.complete.return_value = ModelTurn(
+        content="A capital da França é Paris.",
+        tool_calls=[],
+    )
+    fallback = make_fallback()
+    agent = LlmSupportAgent(model, Mock(), fallback)
+
+    response = agent.respond(ChatInput("Qual é a capital da França?"))
+
+    assert response.reply == "fallback"
+    fallback.respond.assert_called_once()
+
+
+def test_llm_agent_rejects_invalid_tool_result() -> None:
+    model = Mock()
+    model.complete.side_effect = [
+        ModelTurn(
+            content="",
+            tool_calls=[
+                ModelToolCall(
+                    call_id="invalid-1",
+                    name="missing_tool",
+                    arguments="{}",
+                )
+            ],
+        ),
+        ModelTurn(content="O Takamine custa R$ 1,00.", tool_calls=[]),
+    ]
+    tool_executor = Mock()
+    tool_executor.execute.return_value = ('{"error": "Unknown tool"}', [])
+    fallback = make_fallback()
+    agent = LlmSupportAgent(model, tool_executor, fallback)
+
+    response = agent.respond(ChatInput("Quanto custa o Takamine GD20?"))
 
     assert response.reply == "fallback"
     fallback.respond.assert_called_once()

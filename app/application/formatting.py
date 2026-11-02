@@ -3,7 +3,7 @@
 from decimal import Decimal, ROUND_HALF_UP
 
 from app.domain.models import Order, Product, Promotion
-from app.domain.rules import is_available, promotional_price
+from app.domain.rules import is_available, pix_price, promotional_price
 
 
 def format_brl(value: Decimal) -> str:
@@ -23,12 +23,14 @@ def format_brl(value: Decimal) -> str:
 def format_product_line(
     product: Product,
     promotion: Promotion | None = None,
+    payment_method: str | None = None,
 ) -> str:
     """Format a product with price, promotion, and availability information.
 
     Args:
         product (Product): Product to present.
         promotion (Promotion | None): Optional active promotion for the product.
+        payment_method (str | None): Optional payment method qualifying the price.
 
     Returns:
         str: Customer-facing product summary.
@@ -43,6 +45,13 @@ def format_product_line(
         price = (
             f"{price} por {format_brl(promotional_price(product, promotion))} "
             f"({promotion.discount_percent}% off)"
+        )
+        if payment_method == "pix":
+            price += " — desconto de PIX não cumulativo com a promoção"
+    elif payment_method == "pix" and is_available(product):
+        price = (
+            f"{format_brl(pix_price(product))} no PIX "
+            f"(5% off sobre {format_brl(product.price_brl)})"
         )
     return f"- {product.name}: {price} — {availability}."
 
